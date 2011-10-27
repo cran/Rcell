@@ -1,0 +1,49 @@
+Version 1.1-5
+* Example dataset is now compressed in xz 
+
+Version 1.1-4
+* merge.cell.data does more checks on the merged data frame and gives informative errors
+
+Version 1.1-3
+* Documentation improvements
+
+Version 1.1-2
+* Vignettes "cimage". See vignette("cimage")
+
+Version 1.1-1
+* Normalization capabilities for cimage
+
+Version 1.1-0
+* New functions for image manipulation, cimage and get.cell.image
+* Suggest EBImage
+
+Version 1.0-9
+* Documentation for append.oif.time
+
+Version 1.0-8
+* Improved append.z.scan. Adds variables to X$images
+* modifications on merge.cell.data, variables are not set as "as.factor" 
+* New function append.oif.time
+* Bug fix of map.cells.points, probably introduced in version 1.0-7
+
+Version 1.0-7
+* Improved map.cells.points. Now tags can be added in an "additive" fashion. Adding tags for a new position doesn't erase the preavious ones. 
+* Exported the vplayout function, usefull to put several plots in a single page
+
+Version 1.0-6
+* Solved bug in load.cellID.data when loading channels with different amount of t.frames
+
+Version 1.0-5
+* Solved Hmisc detach bug when using load.cellID.data
+
+Version 1.0-4
+* Upgraded Hmisc package to required
+* Cell Counter functions and help. See help("cell-counter").
+
+Version 1.0-3
+* Vignettes "Rcell" and "cplot". See vignette("Rcell") and vignette("cplot")
+
+
+
+
+

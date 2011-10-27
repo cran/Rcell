@@ -1,0 +1,76 @@
+export(load.cellID.data,load.cell.data)
+
+export(as.cell.data)
+S3method(as.cell.data, list)
+S3method(as.cell.data, default)
+
+S3method(merge, cell.data)
+export(load.pdata)
+
+S3method(transform, cell.data)
+S3method(transform.by, cell.data)
+S3method(transform.by, data.frame)
+S3method(transform.by, default)
+export(transform.by)
+
+export(update.n.tot)
+
+export(select.cells)
+export(select.vars, remove.vars)
+
+S3method(subset, cell.data)
+S3method("[", cell.data)
+
+S3method(as.data.frame, cell.data)
+export(cdata)
+S3method("[[", cell.data)
+
+export(QC.filter,QC.undo,QC.reset,QC.execute)
+
+export(is.cell.data)
+
+S3method(print, cell.data)
+S3method(print, summary.cell.data)
+S3method(summary, cell.data)
+
+importFrom(stats,aggregate)
+S3method(aggregate, cell.data)
+
+export(reshape,creshape)
+S3method(reshape, cell.data)
+S3method(reshape, data.frame)
+S3method(reshape, default)
+
+S3method(with, cell.data)
+
+export(cplot,cplotmean,cplotmeans,clayer,clayermean,clayermeans)
+S3method(plot, cell.data)
+export(zoom, xzoom, yzoom)
+
+export(cell.hclust,chclust)
+
+
+export(append.in.focus,append.z.scan,append.memRec.y)
+export(append.anular.y,append.anular.c,append.anular.r)
+export(append.oif.time,append.oif.interval)
+
+export(cardinality.plot,map.cells.points)
+
+export(paste_data_error,paste_parameter,paste_intercept_slope,paste_EC50_n)
+export(vplayout)
+
+export(cimage,get.cell.image,is.cell.image,img.desc)
+S3method(cimage, cell.data)
+S3method(cimage, cell.image)
+S3method(cimage, default)
+S3method(get.cell.image, cell.data)
+S3method(get.cell.image, data.frame)
+S3method(get.cell.image, default)
+S3method(summary, cell.image)
+S3method(print, summary.cell.image)
+S3method(print, cell.image)
+export(cnormalize)
+
+
+
+
