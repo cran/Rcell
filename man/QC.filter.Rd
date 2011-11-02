@@ -54,9 +54,9 @@ Some times it is useful to create additional filters to discriminate between cel
 \seealso{ \code{\link{summary.cell.data}},\code{\link{transform.cell.data}},\code{\link{load.cellID.data}} }
 \examples{
 #load example dataset
-data(ACL394)
+data(ACL394filtered)
 
-#resetting the QC filter saved with the dataset 
+#resetting all the filters
 X<-QC.reset(X)
 
 #filtering by fft.stat

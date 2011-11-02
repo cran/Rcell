@@ -78,12 +78,8 @@ is.cell.image(X)
 \examples{
 
 #load example dataset
-data(ACL394)
+data(ACL394filtered)
   
-#correcting the path to the images
-#normally you won't need to do this
-X$images$path<-factor(system.file('img', package='Rcell'))
-
 #select N=3 cells images from each pos (group), 
 #from the first t.frame and pos 1,8,15,22,29.
 ci<-get.cell.image(X,subset=match(pos,c(1,8,15,22,29),nomatch=0)>0&t.frame==11,

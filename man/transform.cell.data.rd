@@ -54,7 +54,7 @@ transform.by(`_data`,.by,...)
 \seealso{ \code{\link{transform}} }
 \examples{
 #load example dataset
-data(ACL394)
+data(ACL394filtered)
 
 #creating a new variable
 X<-transform(X,f.total.y=f.tot.y-a.tot*f.local.bg.y)

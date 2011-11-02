@@ -66,12 +66,8 @@ cimage(X,...)
 \examples{
 
 #load example dataset
-data(ACL394)
+data(ACL394filtered)
   
-#correcting the path to the images
-#normally you won't need to do this
-X$images$path<-factor(system.file('img', package='Rcell'))
-
 #display timecourse strip of cell 5 of pos 29, channels BF and YFP
 if(interactive()) cimage(X,channel~t.frame,subset=pos==29&cellID==5,channel=c('BF','YFP'))
 
@@ -81,7 +77,6 @@ if(interactive()) cimage(X,...+channel~t.frame,subset=pos==29,channel=c('BF','YF
 #display 3 cells from each pos in a different facet
 if(interactive()) cimage(X,channel~...,facets=~pos,channel=c('BF.out','YFP'),N=3,
     subset=t.frame==11&match(pos,c(1,8,15,22,29),nomatch=0)>0)
-   
 
 #select one BF and many YFP images
 if(interactive()) cimage(X,...~channel+t.frame,subset=pos==29,N=3,

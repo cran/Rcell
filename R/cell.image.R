@@ -561,6 +561,7 @@ cnormalize<-function(X=NULL,normalize.group=c("channel"),...){
 	group.ucid=unique(df$ucid)
 	len.group=length(group.ucid)
 	if(is.null(N)) N=len.group
+	if(len.group==0) stop("Empty group selected",call. = FALSE)
 	if(len.group<=N){ #less cells in group than required
 		df<-join(df,data.frame(ucid=sample(group.ucid,length(group.ucid)),sample=1:len.group),by="ucid")
 	} else { #more cells than required

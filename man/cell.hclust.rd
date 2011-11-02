@@ -59,7 +59,7 @@ The function then calculates a distance matrix using the function \code{distance
 \examples{
 #load example dataset
 #warning: Any object named 'X' will be replaced
-data(ACL394)
+data(ACL394filtered)
 
 #Heriarchical clustering of cells by f.tot.y time course, 
 #using cosangle (uncentered correlation) metric and average linkage method.

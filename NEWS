@@ -1,3 +1,8 @@
+Version 1.1-6
+* Improved vignette documentation
+* Improved example data
+* Package xtable was added to suggest
+
 Version 1.1-5
 * Example dataset is now compressed in xz 
 

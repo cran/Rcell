@@ -39,12 +39,20 @@ vignette('Rcell')
 
 But many times we want to do some manipulation or transformations on the data before plotting it. In this document you'll see how this can be done using \textbf{Rcell}.
 
-<<include=FALSE,echo=FALSE>>=
-library(Rcell)
-data(ACL394)
+\section{Transforming variables}
+
+If you haven't done so, load the \textbf{Rcell} package and the example dataset with 
+
+<<echo=TRUE,eval=FALSE>>=
+library(Rcell) 
+data(ACL394filtered)
 @
 
-\section{Transforming variables}
+<<include=FALSE,echo=FALSE,eval=TRUE>>=
+library(Rcell)
+data(ACL394data)
+X$images$path<-factor(system.file('img', package='Rcell'))
+@
 
 The easiest way to modify your dataset is to create new variables from existing ones. For example, its desirable to correct the fluorescence measure of a cell by the background fluorescence. To do this for the YFP channel we can use the \verb@f.bg.y@ variable, that contains the most common value (mode) for pixels not associated with any cell. If a cell has no fluorophores, we expect it to have a total fluorescence equivalent to \verb@f.bg.y@ times the number of pixels of the cell, \verb@a.tot@. So the background corrected fluorescence can be calculated as \verb@f.tot.y - f.bg.y*a.tot@. To creare a new variable called \verb@f.total.y@ with the corrected value for fluorescence we can use the \verb@transform@ funcion. As all other \textbf{Rcell} functions, the first argument is the \verb@cell.data@ object to tranform.
 
@@ -74,13 +82,13 @@ mytable<-data.frame(pos=with(X,unique(pos)),alpha.factor=rep(c(1.25,2.5,5,10,20)
 print(xtable(mytable, table.placement = "tbp",caption="example data.frame to merge",label="tab:t01"), include.rownames=FALSE)
 @
 
-You can create this table in Excel for example, and save it as a tab delimited text file. If you name it ``mytable.txt'', then you can loaded into \textbf{R} with \verb@read.table@. The best option is to save the file in your working directory, or to change your working directory to where you saved the file (see \verb@?setwd@).   
+You can create this table in Excel\footnote{or from R: \textbf{\texttt{mytable<-data.frame(pos=with(X,unique(pos)),alpha.factor=rep(c(1.25,2.5,5,10,20),each=3))}}} and save it as a tab delimited text file. If you name it ``mytable.txt'', then you can loaded into \textbf{R} with \verb@read.table@. The best option is to save the file in your working directory, or to change your working directory to where you saved the file (see \verb@?setwd@).   
 
 <<eval=FALSE,include=TRUE>>=
 mytable<-read.table("mytable.txt",head=TRUE)
 @  
 
-If the first row of your text file contains the column names (recommended), you have to set \emph{head} to \verb@TRUE@ in \verb@read.table@. Once loaded you can add the new data to your dataset using the \verb@merge@ function. This function looks for common variables between your cell.data and the data.fame you loaded and, if it finds them, it merges the dataset according to those common variables. In this case it will merge by \emph{pos}. You can also specify the variable to merge by with the \emph{by} argument.
+If the first row of your text file contains the column names (recommended), you have to set \emph{head} to \verb@TRUE@ in \verb@read.table@. Once loaded you can add the new data to your dataset using the \verb@merge@ function. This function looks for common variables between \verb@X@ and \verb@mytable@ and, if it finds them it merges the dataset according to those common variables. Be aware that the names of the columns of \verb@mytable@ have to match EXACTLY\footnote{\textbf{R} is case-sensitive so \textbf{\texttt{"pos"}} is different to \textbf{\texttt{"Pos"}}} to the variables of \verb@X@\footnote{You can see these variables with \textbf{\texttt{summary(X)}}}. In this case it will merge by \emph{pos}. You can also specify the variable to merge by with the \emph{by} argument.
 
 <<include=TRUE>>=
 X<-merge(X,mytable)
@@ -88,7 +96,7 @@ X<-merge(X,mytable)
 
 \section{Transform By}
 
-A common transformation is normalization, i.e. dividing the value of a variable by the ``basal'' level. For example, we might be intereset in the fold icrease of YFP fluorescence through time. So we need to divide the measured value at each time by the value at time cero, and we need to this for every cell. How can we do this? The steps we should follow are the following:
+A common transformation is normalization, i.e. dividing the value of a variable by the ``basal'' level. For example, we might be interested in the fold icrease of YFP fluorescence through time. So we need to divide the measured value at each time by the value at time cero, and we need to this for every cell. How can we do this? The steps we should follow are the following:
 \begin{enumerate}
 \item Divide the dataset by cell, creating a table for each cell. 
 \item Indentify the value of fluorescence for time cero.
@@ -103,7 +111,7 @@ Next we need to specify the name of the new variable to be created (\verb@norm.f
 X<-transform.by(X,.(pos,cellID),norm.f.tot.y=f.tot.y/f.tot.y[t.frame==0])
 @
 
-An other way to normalize the data, is dividing by the mean of the first three values.
+You can see the raw and normalized data in Figure~\ref{fig:f01}. Another way to normalize the data, is dividing by the mean of the first three values.
 
 <<include=TRUE>>=
 X<-transform.by(X,.(pos,cellID),norm2.f.tot.y=f.tot.y/mean(f.tot.y[t.frame<=2]))
@@ -126,23 +134,16 @@ cplot(X,norm.f.tot.y~t.frame,group=ucid,geom="line",subset=pos==29)
 \end{center}
 \end{figure}
 
-For more details on plotting read 
-    
-<<eval=FALSE,echo=TRUE>>=
-vignette('cplot')
-@
-
-
 \section{Aggregating your data}     
 
-To calculate summary statistics you can use the \verb@aggregate@ function, that returns an aggregated data.frame. That means that the value of each cell of this data.frame was caculated from more than one cell of the original dataset. For example you might be intereset in getting the mean YFP fluroescence for each pheromone dose. \verb@aggregate@ accepts two notations that give equivalent results.
+To calculate summary statistics you can use the \verb@aggregate@ function, that returns an aggregated table. That means that the value of each cell of this aggregated table is caculated from more than one cell of the original table. For example you might be intereset in getting the mean YFP fluroescence for each pheromone dose. \verb@aggregate@ accepts two notations that give equivalent results.
 
 <<eval=FALSE,echo=TRUE>>=
 aggregate(X,.(alpha.factor),select="f.total.y")
 aggregate(X,f.total.y~alpha.factor) #formula notation
 @
 <<include=TRUE,echo=FALSE>>=
-aggregate(X,f.total.y~alpha.factor)
+aggregate(X,f.total.y~AF.nM)
 @
 
 You can calculate other statistics using the \emph{FUN} argument, and you can include more than one variable. Here we calculate the median for \verb@f.tot.y@, \verb@f.tot.c@ and \verb@a.tot@. Note the use of the wildcard in the \emph{select} argument.  
@@ -158,17 +159,21 @@ aggregate(X,f.density.y~t.frame+alpha.factor,FUN=funstofun(median,sd),subset=t.f
 @
 
      
-\section{Evaluating expression in your dataset}     
+\section{Evaluating expressions in your dataset}     
 
-Using the \verb@with@ function, you can evaluate a expression in a enviroment created from your dataset. That means that you can use the names of your variables. 
+Using the \verb@with@ function, you can evaluate a expression in a enviroment created from your dataset. That means that you can use the names of your variables directly, without any prefix. 
 For example to calculate the mean of \verb@f.tot.y@ from position 1
 
 <<include=TRUE>>=
-with(X,mean(f.tot.y),subset=pos==1)
+with(X,mean(f.tot.y[pos==1]))
 @
 
-If you don't use the \verb@with@ function, \textbf{R} won't know what the variable f.tot.y means, as it is not in the search path.   
-     
+If you don't use \verb@with@ you have to write the full identifier of the variable, and the code becomes longer and harder to understand. For exaple, the same result can be obtained with
+
+<<include=TRUE,eval=FALSE>>=
+mean(X$data$f.tot.y[X$data$pos==1])
+@
+
 \section{Exporting your data}
 
 Although you can do much of your analysis using Rcell functions, you might need to export the data to some other application or use another package within \textbf{R}. To retrieve the entire dataset in a data.frame, use the double square brackets notation. This returns the registers that pass the QC.filter.
@@ -185,7 +190,7 @@ df<-X[[pos==1,c("cellID","f.tot.y","a.tot")]]
 
 You can then save the data.frame to a file with \verb@write.table@, or use it in another \textbf{R} package.  
 
-For some kinds of data analysis you need your data in a different for than the one \textbf{Rcell} uses. You can use the \verb@reshape@ function to reshape your data. For instance, a common restructuring is to display time as different columns, and individual cells as different rows. You can obtain this sort of data.frames with the following command.
+For some kinds of data analysis you need your data in a different form than the one \textbf{Rcell} uses. You can use the \verb@reshape@ function to reshape your data. For instance, a common restructuring is to display time as different columns, and individual cells as different rows. You can obtain this sort of data.frames with the following command.
 
 <<include=TRUE>>=
 reshape(X,pos+cellID~variable+t.frame,select="f.tot.y",subset=pos<=2&cellID<=10&t.frame%%2==0)

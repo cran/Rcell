@@ -38,12 +38,6 @@ In this document I will present and explain different plots that can be made wit
 vignette('Rcell')
 @
 
-
-<<include=FALSE,echo=FALSE>>=
-library(Rcell)
-data(ACL394)
-@
-
 \section{A Grammar of Graphics}
 
 There exist an enormous variety of statistical plots, as a few example we can mention scatter plots, bar plots, histograms, piecharts, box plots, etc. The grammar of graphics attempts to describe all these different plots in a simple, coherent language. It defines the following elements to describe a plot:
@@ -55,20 +49,33 @@ There exist an enormous variety of statistical plots, as a few example we can me
 \item[\textit{position:}] minnor position adjustments of the geoms
 \item[\textit{scale:}] defines the scale for the mapping between a variable and a aesthetic attribute (e.g. lineal, log)
 \item[\textit{coordinate:}] the coordinate system to be used. This is normally cartesian coordinates, but can also be polar coordinates for example.
-\item[\textit{faceting:}] describes how the plot should be facet into a series of subplots.
+\item[\textit{faceting:}] describes how the plot should be divided into a series of subplots.
 \end{description}
 
 \textbf{ggplot2} implements a ``layered grammar of graphics'', meaning that several layers containing the mentioned elements can be added to a plot. 
 In the following sections I will try to make this clear by a series of explained examples.
 
 \section{Scatter Plots}
-You can create a scatter plot of YFP vs CFP total fluorescence (Figure~\ref{fig:f01} left) by typing  \footnote{load the example dataset if you haven't done so with data(ACL394)}
+If you haven't done so, load the \textbf{Rcell} package and the example dataset with 
+
+<<eval=FALSE,echo=TRUE>>=
+library(Rcell) 
+data(ACL394filtered)
+@
+
+<<include=FALSE,echo=FALSE,eval=TRUE>>=
+library(Rcell)
+data(ACL394data)
+X$images$path<-factor(system.file('img', package='Rcell'))
+@
+
+You can create a scatter plot of YFP vs CFP total fluorescence (Figure~\ref{fig:f01} left) by typing
 
 <<fig01a,include=TRUE>>=
 cplot(X,x=f.tot.y,y=f.tot.c,subset=t.frame==13)
 @
 
-The first argument of the \verb@cplot@ function is the \verb@cell.data@ object, i.e. the \emph{data} element of the plot. The second and third argument specify the \emph{aesthetic mapping}; \emph{f.tot.y} variable of the dataset should be mapped to the \emph{x} position aesthetic, and \emph{f.tot.c} to the \emph{y} position aesthetic (the \verb@subset@ argument just indicates we don't want to plot the entire dataset, just some registers). As you can see not all elements of the grammar where specified. The ones that are not are set to default values. For example \emph{geom} is set to \verb@"point"@, meaning that a point is going to be used to represent the data. The aesthetic attributes available depend on the selected \emph{geom}. For example a point \emph{geom} has \emph{x}, \emph{y}, \emph{size}, \emph{shape}, \emph{color}, \emph{fill} and \emph{alpha} (transparency). To see all aesthetic attributes and default values of the available \emph{geom} go to \url{http://had.co.nz/ggplot2}. There are many attributes that can be mapped to variables, therefor increasing the amount of information a plot contains. You can specify the \emph{aesthetic mapping} of these attributes as we did before.
+The first argument of the \verb@cplot@ function is the \verb@cell.data@ object, i.e. the \emph{data} element of the plot. The second and third argument specify the \emph{aesthetic mapping}; \emph{f.tot.y} variable of the dataset should be mapped to the \emph{x} position aesthetic, and \emph{f.tot.c} to the \emph{y} position aesthetic (the \verb@subset@ argument just indicates we don't want to plot the entire dataset, just some registers). As you can see not all elements of the grammar where specified. The ones that are not are set to default values. For example \emph{geom} is set to \verb@"point"@, meaning that a point is going to be used to represent the data. The aesthetic attributes available depend on the selected \emph{geom}. For example a point \emph{geom} has \emph{x}, \emph{y}, \emph{size}, \emph{shape}, \emph{color}, \emph{fill} and \emph{alpha} (transparency). To see all aesthetic attributes and default values of the available \emph{geom} go to \url{http://had.co.nz/ggplot2}. There are many attributes that can be mapped to variables, therefore increasing the amount of information a plot contains. You can specify the \emph{aesthetic mapping} of these attributes as we did before.
 
 <<fig01b,include=TRUE>>=
 cplot(X,x=f.tot.y,y=f.tot.c,size=a.tot,color=AF.nM,shape=AF.nM,alpha=0.5,subset=t.frame==13)
@@ -88,7 +95,7 @@ print(
 <<fig01b>>
 , vp = viewport(layout.pos.row = 1, layout.pos.col = 10:20))
 @
-\caption{Left: Scatter plot of total CFP (f.tot.c) vs YFP (f.tot.y) fluorescence. Right: same plot with shape mapped to treatment (AF.nM), and size mapped to cell area (a.tot).}
+\caption{Left: Scatter plot of total CFP (f.tot.c) vs YFP (f.tot.y) fluorescence. Right: same plot with shape and color mapped to treatment (AF.nM), and size mapped to cell area (a.tot).}
 \label{fig:f01}
 \end{center}
 \end{figure}
@@ -109,7 +116,7 @@ cplot(X ,f.tot.y ~ t.frame, subset = AF.nM == 20)
 plot(X, f.tot.y ~ t.frame, subset = AF.nM == 20)
 @
 
-You can see that the \textit{t.frame} variable takes discrete levels, thus causing overplotting; to many points fall in the same region and you can no longer estimate the density (Figure~\ref{fig:f02} left). The plot is ``saturated''. There are several strategies to avoid overplotting, for example one could reduce the \emph{size} of the \emph{geom} and use \emph{alpha} blending. Another strategy is to use the \emph{position} adjustment. By default this is set to \verb@"identity"@, meaning that the points fall where the data says so. If you change this to \verb@"jitter"@, the points are jittered (a small white noise is added to the \emph{x} position) to avoid overplotting (Figure~\ref{fig:f02} right). 
+You can see that the \textit{t.frame} variable takes discrete levels, thus causing overplotting; too many points fall in the same region and you can no longer estimate the density (Figure~\ref{fig:f02} left). The plot is ``saturated''. There are several strategies to avoid overplotting, for example one could reduce the \emph{size} of the \emph{geom} and use \emph{alpha} blending. Another strategy is to use the \emph{position} adjustment. By default this is set to \verb@"identity"@, meaning that the points fall where the data says so. If you change this to \verb@"jitter"@, the points are jittered (a small white noise is added to the \emph{x} position) to avoid overplotting (Figure~\ref{fig:f02} right). 
 
 <<fig02b,include=TRUE>>=
 cplot(X,f.tot.y~t.frame,size=1,alpha=0.3,position="jitter",subset=AF.nM==20)
@@ -142,10 +149,10 @@ cplot(X,f.tot.y~t.frame,group=t.frame,geom="boxplot",subset=AF.nM==20)
 
 Setting the \emph{geom} to \verb@"boxplot"@ creates the desired plot. If you think the steps required to produce this plot, you will realize that some preprocessing of the data has to occur before the plot is actually done. For instance the 25\%, 50\% and 75\% quantiles have to be calculated for each group (defined by the \emph{group} argument). This means that a ``statistical transformation'' (\emph{stat}) of the data has to be done. The \emph{stat} that does this calculation is called \verb@"boxplot"@. When we selected the \verb@"boxplot"@ \emph{geom}, the \emph{stat} was set by default to \verb@"boxplot"@. Every \emph{geom} has a default \emph{stat}. For example \emph{geom} \verb@"point"@ has the default \emph{stat} \verb@"identity"@ that does no transformation to the data, exactly what we need to do scatter plots. 
 
-Another way to show this data is to plot the mean and a confidence interval for the mean, for each time. We can do this selecting \emph{stat} \verb@"summary"@ and specifying which function is to be used to calculate the summary statistics by the \verb@fun.data@ argument.
+Another way to show this data is to plot the mean and a confidence interval for the mean, for each time. We can do this selecting \emph{stat} \verb@"summary"@ and specifying which function is to be used to calculate the summary statistics by the \verb@fun.data@ argument. We have to use several \emph{geom}s to show all this information.
 
 <<eval=FALSE,echo=TRUE>>=
-cplot(X, f.tot.y ~ t.frame, subset = AF.nM == 20, stat = "summary", fun.data = "mean_cl_normal")
+cplot(X, f.tot.y ~ t.frame, subset = AF.nM == 20, stat = "summary", fun.data = "mean_cl_normal", geom=c("point","errorbar","line"))
 @
 
 Because plotting the mean is a fairly common thing to do, \textbf{Rcell} provides the convenience function \verb@cplotmean@ that sets  \emph{stat} to \verb@"summary"@ and \verb@fun.data@ to \verb@"mean_cl_normal"@. The same plot (Figure~\ref{fig:f03} right) can be done with
@@ -176,7 +183,7 @@ print(
 
 \section{Adding Layers to a Plot}        
 
-Many time plots with several layers are required. For example we could want to add a layer with the mean and confidence interval for the mean, to a scatter plot. To create such a multilayer plot we first create a plot and assign it to a variable \footnote{The plotting functions return a object of class ggplot}.
+Many times plots with several layers are required. For example we may want to add a layer with the mean and confidence interval for the mean, to a scatter plot. To create such a multilayer plot we first create a plot and, instead of displaying it, we assign it to a variable \footnote{The plotting functions return a object of class \textbf{\texttt{ggplot}}}.
 <<>>=
 p <- cplot(X,f.tot.y~t.frame,size=1,alpha=0.3,position="jitter",subset=AF.nM==20)
 @
@@ -215,7 +222,7 @@ Only layers can be added to plots, you can't add plots to plots nor layers to la
  
 \section{Faceting Plots}     
 
-Faceting creates many subplots showing different subsets of the data. You can facet a plot by providing a \emph{facets} argument. This argument should be a formula. If only the right term is provided (\verb@~myVar@) then \verb@facet_wrap@ function of \textbf{ggplot2} is used. This function creates a one dimensional strip of subplots ``wrapped'' into 2D to save space. If you provide both terms to the \emph{facets} formula, a grid of subplots is created by \verb@facet_grid@ function. An example of each is shown in Figure~\ref{fig:f5a} and~\ref{fig:f5b}.
+Faceting creates many subplots showing different subsets of the data. You can facet a plot by providing a \emph{facets} argument. This argument should be a formula. If only the right term is provided (\verb@~myVar@) then a one dimensional strip of subplots is created and then ``wrapped'' into 2D to save space. If you provide both terms to the \emph{facets} formula, a grid of subplots is created. An example of each is shown in Figure~\ref{fig:f5a} and~\ref{fig:f5b} respectively.
 
 <<fig05a,include=TRUE>>=
 cplot(X,f.tot.c~f.tot.y,facets=~t.frame,size=0.5,alpha=0.5)

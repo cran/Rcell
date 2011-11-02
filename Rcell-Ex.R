@@ -19,9 +19,9 @@ flush(stderr()); flush(stdout())
 ### ** Examples
 
 #load example dataset
-data(ACL394)
+data(ACL394filtered)
 
-#resetting the QC filter saved with the dataset 
+#resetting all the filters
 X<-QC.reset(X)
 
 #filtering by fft.stat
@@ -36,7 +36,8 @@ X<-QC.filter(X,n.tot==14) #keep cells that appear in all t.frames
 
 #exclude cells by ucid (Unique Cell ID)
 cplot(X,f.total.y~time.min,facets=~AF.nM,size=0.3,geom="jitter") 
-c1=select.cells(X,f.total.y<10e4&t.frame>3,n.tot.subset=n.tot>=8)	#selecting cells that don't respond
+#selecting cells that don't respond
+c1=select.cells(X,f.total.y<10e4&t.frame>3,n.tot.subset=n.tot>=8)	
 X<-QC.filter(X,!ucid %in% c1)
 
 #undoing the last filter
@@ -76,7 +77,7 @@ aggregate(X,.(pos),select="f.tot.?") # using wildcard pattern matching
 aggregate(X,cbind(f.tot.y,f.tot.c)~pos) #formula notation
 
 #subset before aggregating
-aggregate(X,.(pos),select="f.tot.y",subset=t.frame==13) # using wildcard pattern matching
+aggregate(X,.(pos),select="f.tot.y",subset=t.frame==13)
 
 #calculate the median instead of the mean
 aggregate(X,.(pos),select="f.tot.y",FUN=median)
@@ -177,7 +178,8 @@ df<-X[[]]
 df<-X[[t.frame==13,]]
 
 #extract a selected group of variables
-df<-X[[,c("id.vars","f.tot.?","a.tot")]] #note the use of keywords, patterns and variable names
+df<-X[[,c("id.vars","f.tot.?","a.tot")]]
+#note the use of keywords, patterns and variable names
 
 #extract the dataset without applying the QC filter
 df<-cdata(X,QC.filter=FALSE)
@@ -231,12 +233,14 @@ flush(stderr()); flush(stdout())
 
 #load example dataset
 #warning: Any object named 'X' will be replaced
-data(ACL394)
+data(ACL394filtered)
 
-#Heriarchical clustering of cells by f.tot.y time course, using cosangle (uncentered correlation) metric and average linkage method.
+#Heriarchical clustering of cells by f.tot.y time course, 
+#using cosangle (uncentered correlation) metric and average linkage method.
 cell.hclust(X,"f.tot.y")
 
-#Heriarchical clustering of cells by f.tot.y time course, using euclid metric and complete linkage method.
+#Heriarchical clustering of cells by f.tot.y time course, 
+#using euclid metric and complete linkage method.
 cell.hclust(X,"f.tot.y",metric="euclid",method="complete")
 
 #Cut the tree at constant height and show the clusters
@@ -263,27 +267,22 @@ flush(stderr()); flush(stdout())
 ### ** Examples
 
 
-  #load example dataset
-  data(ACL394)
+#load example dataset
+data(ACL394filtered)
   
-  #correcting the path to the images
-  #normally you won't need to do this
-  X$images$path<-factor(system.file('img', package='Rcell'))
+#display timecourse strip of cell 5 of pos 29, channels BF and YFP
+if(interactive()) cimage(X,channel~t.frame,subset=pos==29&cellID==5,channel=c('BF','YFP'))
 
-  #display timecourse strip of cell 5 of pos 29, channels BF and YFP
-  if(interactive()) cimage(X,channel~t.frame,subset=pos==29&cellID==5,channel=c('BF','YFP'))
+#display 7 cells (default value for N) of pos 29
+if(interactive()) cimage(X,...+channel~t.frame,subset=pos==29,channel=c('BF','YFP'))
 
-  #display 7 (default value for N) cells of pos 29
-  if(interactive()) cimage(X,...+channel~t.frame,subset=pos==29,channel=c('BF','YFP'))
-
-  #display 3 cells from each pos in a different facet
-  if(interactive()) cimage(X,channel~...,facets=~pos,channel=c('BF.out','YFP'),N=3,
+#display 3 cells from each pos in a different facet
+if(interactive()) cimage(X,channel~...,facets=~pos,channel=c('BF.out','YFP'),N=3,
     subset=t.frame==11&match(pos,c(1,8,15,22,29),nomatch=0)>0)
-   
 
-  #select one BF and many YFP images
-  if(interactive()) cimage(X,...~channel+t.frame,subset=pos==29,N=3,
-    channel.subset=channel=='YFP'|(channel=='BF.out'&t.frame==11))
+#select one BF and many YFP images
+if(interactive()) cimage(X,...~channel+t.frame,subset=pos==29,N=3,
+	channel.subset=channel=='YFP'|(channel=='BF.out'&t.frame==11))
 
 
 
@@ -320,7 +319,8 @@ cplot(X,f.tot.y~f.tot.c,subset=t.frame==13,color=pos)
 #map the size aesthetic to the the cell area a.tot
 cplot(X,f.tot.y~f.tot.c,subset=t.frame==13,color=pos,size=a.tot)
 
-#adding description of the positions for futher plotting (AF.nM: dose of alpha-factor yeast pheromone in nM)
+#adding description of the positions for futher plotting 
+#	(AF.nM: dose of alpha-factor yeast pheromone in nM)
 X<-merge(X,data.frame(pos=1:35,AF.nM=rep(c(1.25,2.5,5,10,20),each=7)))
 
 #plot time course for f.tot.y and facet by pheromone dose
@@ -364,22 +364,21 @@ flush(stderr()); flush(stdout())
 ### ** Examples
 
 
-  #load example dataset
-  data(ACL394)
+#load example dataset
+data(ACL394filtered)
   
-  #correcting the path to the images
-  #normally you won't need to do this
-  X$images$path<-factor(system.file('img', package='Rcell'))
+#select N=3 cells images from each pos (group), 
+#from the first t.frame and pos 1,8,15,22,29.
+ci<-get.cell.image(X,subset=match(pos,c(1,8,15,22,29),nomatch=0)>0&t.frame==11,
+	group=.(pos),N=3,channel=c('BF.out','YFP'))
+if(interactive()) ci #print the cells images
+summary(ci) #get a summary of the content
+img.desc(ci) #get the image description data.frame
 
-  #select N=3 cells images from each pos (group), from the first t.frame and pos 1,8,15,22,29.
-  ci<-get.cell.image(X,subset=match(pos,c(1,8,15,22,29),nomatch=0)>0&t.frame==11,group=.(pos),N=3,channel=c('BF.out','YFP'))
-  if(interactive()) ci #print the cells images
-  summary(ci) #get a summary of the content
-  img.desc(ci) #get the image description data.frame
-
-  #select the first 4 t.frames for YFP, and the first t.frame for BF
-  ci<-get.cell.image(X,subset=pos==29,group='pos',channel.subset=channel=='YFP'|(t.frame==11&channel=='BF'))
-  if(interactive()) print(ci)
+#select the first 4 t.frames for YFP, and the first t.frame for BF
+ci<-get.cell.image(X,subset=pos==29,group='pos',
+	channel.subset=channel=='YFP'|(t.frame==11&channel=='BF'))
+if(interactive()) print(ci)
 
 
 
@@ -397,11 +396,10 @@ flush(stderr()); flush(stdout())
 
 ### ** Examples
 
-  ## Not run: 
-##D   setwd(".")  #set the working directory to the folder with your images
-##D   X<-load.cellID.data()  #load the dataset to R
+## Not run: 
+##D setwd(".")  #set the working directory to the folder with your images
+##D X<-load.cellID.data()  #load the dataset to R
 ##D 
-##D   
 ## End(Not run)
 
 
@@ -566,11 +564,11 @@ X1<-subset(X,pos==1)
 X1<-X[pos==1]
 
 #subset by t.frame and select variables
-#note the use of keywords, pattern matching and variable names to select the variables
+#note the use of keywords and pattern matching to select the variables
 X.t13<-X[t.frame==13,c("morpho","*.y","f.tot.c")]
 summary(X.t13) #take a look at the new cell.data object
 
-#eliminate registers that didn¥t pass the QC filter
+#eliminate registers that didn't pass the QC filter
 X<-subset(X,QC.filter=TRUE)
 
 
@@ -616,7 +614,7 @@ flush(stderr()); flush(stdout())
 ### ** Examples
 
 #load example dataset
-data(ACL394)
+data(ACL394filtered)
 
 #creating a new variable
 X<-transform(X,f.total.y=f.tot.y-a.tot*f.local.bg.y)
@@ -644,18 +642,23 @@ flush(stderr()); flush(stdout())
 ### ** Examples
 
 
-  #load example dataset
-  data(ACL394)
+#load example dataset
+data(ACL394)
   
-  #correcting the path to the images
-  #normally you won't need to do this
-  X$images$path<-factor(system.file('img', package='Rcell'))
+#correcting the path to the images
+#normally you won't need to do this
+X$images$path<-factor(system.file('img', package='Rcell'))
 
-  #select N=3 cells images from each pos (group), from the first t.frame and pos 1,8,15,22,29.
-  ci<-get.cell.image(X,subset=match(pos,c(1,8,15,22,29),nomatch=0)>0&t.frame==11,group=.(pos),N=3,channel=c('BF','YFP'))
-  if(interactive()) display(tile(combine(ci))) #display a cell image without normalization
-  ci<-cnormalize(ci) #apply normalization
-  if(interactive()) display(tile(combine(ci))) #display again
+#select N=3 cells images from each pos (group), 
+#from the first t.frame and pos 1,8,15,22,29.
+ci<-get.cell.image(X,subset=match(pos,c(1,8,15,22,29),nomatch=0)>0&t.frame==11,
+	group=.(pos),N=3,channel=c('BF','YFP'))
+
+#display a cell image without normalization
+if(interactive()) display(tile(combine(ci))) 
+
+ci<-cnormalize(ci) #apply normalization
+if(interactive()) display(tile(combine(ci))) #display again
 
 
 
