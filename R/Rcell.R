@@ -1,11 +1,8 @@
 #Rcell: R package for analysis of CellID datasets
+#ToDo: documentation on cell.data object
 
 #Strong dependence on ggplot2 package
-.onLoad <- function(lib, pkg, ...) {
-	require("stats")
-	require("plyr")
-	require("reshape")
-	require("ggplot2")
+.onAttach <- function(lib, pkg, ...) {
 	theme_set(theme_bw())
 }
 
@@ -20,12 +17,12 @@
 #loads a cellID output to a cell.data object
 #ToDo: fix bf as fluorescence option of cellID, with image.info table
 #ToDo: when bf_as_fl string BF_ appears as channel identifier
-#ToDo: warn when no pos folders are found
+#ToDo: warn when no pos folders are found!!!!s
 load.cellID.data <-
 function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
             path=getwd(),basename="out"
 			,select=NULL,exclude=NULL
-            ,load.vars="all") {
+            ,load.vars="all",split.image=FALSE) {
 	on.exit(gc())	
 		
 	#Searching for folders that match pos.pattern
@@ -297,6 +294,9 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 	class(cell.data)<-c("cell.data","list")
 	if(!is.null(select)||!is.null(exclude))
 		cell.data=subset(cell.data,select=select,exclude=exclude)
+
+	if(isTRUE(split.image)) cell.data<- .restructure.split.image(cell.data)
+
 	print(summary(cell.data))
 	return(cell.data)
 }
@@ -313,6 +313,7 @@ as.cell.data <- function(X,...) UseMethod("as.cell.data")
 #previous versions of Rcell
 #ToDo: check that the provided path.images is the correct
 #ToDo: debug loading old data
+#ToDo: debug the whole function
 as.cell.data.list <- function(X,path.images=NULL,...){
 	lnames=names(X)
 	if(!"data"%in%lnames) stop("element 'X$data' required in list to coerce to cell.data")
@@ -497,6 +498,26 @@ transform.cell.data <- function(`_data`,...,QC.filter=TRUE){
 	return(`_data`)
 }
 
+
+#*************************************************************************#
+#public 
+#transforms the data.frame after spliting it by the specified variables
+#ToDo: add a subset argument to this function, so "cummulative" transformations can be done
+transform.by.data.frame <- function(`_data`,.by,...,subset=NULL){
+	
+	#browser()
+	on.exit(gc())
+	subset=substitute(subset)
+
+	if(!is.null(subset)) `_data`<-subset(`_data`,eval(subset,`_data`))
+
+	#doing the transformation	
+	`_data`<-do.call("rbind", dlply(`_data`,.by,transform,...)) 
+		
+	return(`_data`)	
+} 
+transform.by.default <- transform.by.data.frame
+
 #*************************************************************************#
 #public 
 #transforms the cell.data$data variables after spliting it by the specified variables
@@ -537,32 +558,12 @@ transform.by.cell.data <- function(`_data`,.by,...,QC.filter=TRUE){
 }
 
 #*************************************************************************#
-#public 
-#transforms the data.frame after spliting it by the specified variables
-#ToDo: add a subset argument to this function, so "cummulative" transformations can be done
-transform.by.data.frame <- function(`_data`,.by,...,subset=NULL){
-	
-	#browser()
-	on.exit(gc())
-	subset=substitute(subset)
-
-	if(!is.null(subset)) `_data`<-subset(`_data`,eval(subset,`_data`))
-
-	#doing the transformation	
-	`_data`<-do.call("rbind", dlply(`_data`,.by,transform,...)) 
-		
-	return(`_data`)	
-} 
-transform.by.default <- transform.by.data.frame
-
-#*************************************************************************#
 #generic
 #Creates the generic function transform.by
 transform.by <- function(`_data`,.by,...) UseMethod("transform.by")
 
 #*************************************************************************#
 #calculates the total number of frames in which a cell was found (after QC filter)
-#ToDo: check memmory usage (in X$transform it saves environment?)
 update.n.tot <- function(object,QC.filter=TRUE,...){
 	on.exit(gc())
 	#transform.by(object,.(pos,cellID),n.tot=length(t.frame),QC.filter=QC.filter)
@@ -868,12 +869,14 @@ print.cell.data<-function(x,...){
 #*************************************************************************#
 #public
 #prints a summary.cell.data object
+#ToDo: xpos.nucl.y ypos.nucl.y, etc
 print.summary.cell.data<-function(x,...){
 	cat("\n",x$software,"data object summary")
 	cat("\n")
 	cat("\nloaded on:",x$load.date)
 	cat("\nloaded from:",toString(x$positions.path))
-	cat("\nchannels: ",toString(x$channels$name),sep="")
+	cat("\nvars channels: ",toString(x$channels$name),sep="")
+	cat("\nimage channels: ",toString(x$image.channels),sep="")
 	cat("\npositions:",.format.sequence(x$positions))
 	cat("\ntime frames:",.format.sequence(x$time.frames),"\n")
 	cat("\n")
@@ -936,6 +939,7 @@ summary.cell.data <-function(object,...){
 	summary$positions.path=unique(levels(object$images$path))
 	summary$software=object$software
 	summary$channels=object$channels
+	summary$image.channels=levels(object$images$channel)
 	summary$positions=unique(object$data$pos)
 	summary$time.frames=unique(object$data$t.frame)
 	
@@ -1480,6 +1484,53 @@ chclust<-cell.hclust
 
 
 #####################Private Functions#####################################
+
+#*************************************************************************#
+#private
+#restructure the dataset for FRET split images 
+#ToDo: some a.tot are negative. This might be due to a "virtual" cell created for simmetry
+.restructure.split.image<-function(X,upper.identifier="u",lower.identifier="l"){
+	common.vars=c("QC",.CELLID_ID_VARS_DERIV)	
+
+	if(!any(X$data$cellID>1000)) stop("some cellID > 1000 expected for cells in upper subimage of split image",call.=FALSE)
+
+ 	data.u=subset(X$data,cellID>=1000)
+	data.l=subset(X$data,cellID<1000)
+	data.u<-transform(data.u,cellID=cellID%%1000)	
+	
+	names(data.u)<- .append.identifier(names(data.u),identifier=upper.identifier,common.vars)
+	names(data.l)<- .append.identifier(names(data.l),identifier=lower.identifier,common.vars)
+	
+	X$data=join(data.l,data.u,by=c("pos","cellID","t.frame"))
+
+	original.vars=X$variables$all
+	for(i in names(X$variables))
+		X$variables[[i]]<-union(.append.identifier(X$variables[[i]],identifier=upper.identifier,common.vars)
+							   ,.append.identifier(X$variables[[i]],identifier=lower.identifier,common.vars))
+	
+	X$variables$upper<-.append.identifier(setdiff(original.vars,common.vars),identifier=upper.identifier)
+	X$variables$lower<-.append.identifier(setdiff(original.vars,common.vars),identifier=lower.identifier)
+
+	X$channels<-rbind(
+				transform(X$channel,posfix=paste(posfix,upper.identifier,sep=""),name=paste(name,"upper image"))
+				,transform(X$channel,posfix=paste(posfix,lower.identifier,sep=""),name=paste(name,"lower image"))
+				,data.frame(posfix=c(upper.identifier,lower.identifier),name=c("upper image","lower image"))
+			)
+
+	return(X)
+}
+
+#*************************************************************************#
+#private
+#append identifiers to variables names
+.append.identifier<-function(var.names,identifier,common.vars=c("QC",.CELLID_ID_VARS_DERIV)){
+	h=var.names
+	nh<-nchar(h)
+	return(
+		paste(h
+			,ifelse(substr(h,nh-1,nh-1)=="."|h%in%common.vars,"",".")
+		    ,ifelse(h%in%common.vars,"",identifier),sep=""))
+}
 
 #*************************************************************************#
 #private

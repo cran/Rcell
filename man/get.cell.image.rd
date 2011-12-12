@@ -22,7 +22,7 @@ get.cell.image(X,...)
 \method{get.cell.image}{cell.data}(X,subset=NULL,channel.subset=NULL,channel=NULL
   ,group=NULL,N=7,select=NULL,exclude=NULL,QC.filter=TRUE,box.size=20,...)
 
-\method{get.cell.image}{data.frame}(X,box.size=20,...)
+\method{get.cell.image}{data.frame}(X,box.size=20,contained.box=FALSE,bg.col=0,...)
 
 \method{get.cell.image}{default}(X,box.size=20,...)
 
@@ -51,7 +51,8 @@ is.cell.image(X)
     be applied over the data}
   \item{box.size}{size in pixels of the image containing the cells. This specifies the 'radius', i.e. the image will be a square of length 2*box.size+1}
   \item{\dots}{further arguments for methods}
-  
+  \item{contained.box}{boolean indicating if the XY position of the box should be corrected to be contained in the original image. Relevant for cells close to the image border. If FALSE the part of the box outside the original image will be filled with \code{bg.col}}
+  \item{bg.col}{color to be used for the background of the images}
   \item{object}{cell.image object to summarize}
   \item{x}{object to print}
   \item{nx}{number of columns in the image tile}  

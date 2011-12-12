@@ -544,6 +544,32 @@ select.vars(X,c("id.vars","a.*","f.tot.y"),exclude="*bg*")
 
 
 cleanEx()
+nameEx("show.img")
+### * show.img
+
+flush(stderr()); flush(stdout())
+
+### Name: show.img
+### Title: Show a Image
+### Aliases: show.img show.image
+### Keywords: manip methods
+
+### ** Examples
+
+
+#load example dataset
+data(ACL394filtered)
+  
+#display the BF out image from position 8 and t.frame 11
+if(interactive()) show.img(X,pos=8,t.frame=11)
+
+#display a stack of the YFP images of position 29
+if(interactive()) show.img(X,pos=29,t.frame=7:11,channel="YFP")
+
+
+
+
+cleanEx()
 nameEx("subset.cell.data")
 ### * subset.cell.data
 

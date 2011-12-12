@@ -1,3 +1,8 @@
+Version 1.1-7
+* load.cellID.data can correctly load FRET split images
+* new function show.img
+* Cell-ID-vars vignette
+
 Version 1.1-6
 * Improved vignette documentation
 * Improved example data

@@ -59,7 +59,7 @@ export(cardinality.plot,map.cells.points)
 export(paste_data_error,paste_parameter,paste_intercept_slope,paste_EC50_n)
 export(vplayout)
 
-export(cimage,get.cell.image,is.cell.image,img.desc)
+export(cimage,get.cell.image,is.cell.image,img.desc,show.img,show.image)
 S3method(cimage, cell.data)
 S3method(cimage, cell.image)
 S3method(cimage, default)

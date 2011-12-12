@@ -18,7 +18,7 @@
 }
 \usage{
 load.cellID.data(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",path=getwd()
-  ,basename="out",select=NULL,exclude=NULL,load.vars="all")
+  ,basename="out",select=NULL,exclude=NULL,load.vars="all",split.image=FALSE)
 }
 
 
@@ -33,6 +33,9 @@ load.cellID.data(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",path=getwd()
    \item{exclude}{character vector defining variables names to be excluded of the cell.data object}
    \item{load.vars}{character specifying which variables or group of variables of the Cell-ID 
    		out_all file should be loaded.}
+   \item{split.image}{boolean indicating if the images are split and upper cells should be matched 
+      to lower cells. Set to TRUE if analyzing a FRET split image experiment.}
+   		
 }
 
 \details{
@@ -71,7 +74,8 @@ The restructuring of the data involves arranging the information for each
 time point of each cell into a single row. In the output of Cell-ID this information
 appears in several rows, one for each channel. The restructured data 
 'collapses' this rows into a single one, adding and modifying the column 
-names by appending a channel specific postfix. 
+names by appending a channel specific postfix. If \code{split.image} is set to TRUE
+a sub-image indentifier is also appended, 'u' for upper and 'l' for lower. 
 When Cell-ID is run, the images it uses have to be named in a specific way.
 The first three letters of the image name are used as a channel token, i.e. it
 identifies the channel. If you have YFP and CFP channels, the images should be

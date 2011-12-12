@@ -41,7 +41,7 @@ cimage.cell.data <- function(X,formula=NULL,facets=NULL,time.var=c("time","t.fra
 
 
 print.cell.image<-function(x,nx=ceiling(sqrt(length(x))),...){
-	display(tile(normalize(combine(X)),nx=ceiling(sqrt(length(X))))
+	EBImage::display(EBImage::tile(EBImage::normalize(EBImage::combine(X)),nx=ceiling(sqrt(length(X))))
 	,title=paste("cell.image from",toString(unique(attr(x,"img.desc")$path))))
 }
 
@@ -59,7 +59,7 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 	#cheking formula
 	if(is.null(formula)){ #no formula
 		if(is.null(facets)){ #no formula nor facets
-			outimg<-tile(normalize(combine(X)),nx=ceiling(sqrt(length(X))))
+			outimg<-tile(normalize(EBImage::combine(X)),nx=ceiling(sqrt(length(X))))
 			if(display) EBImage::display(outimg)
 			return(invisible(outimg)) #like print.cell.image
 			
@@ -204,8 +204,7 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 		outimg<-tmp
 	}
 
-	if(display) EBImage::display(outimg)
-	
+	if(display) EBImage::display(outimg,title="cimage")
 	return(invisible(outimg))
 }
 
@@ -277,8 +276,7 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 #public 
 #returns a list of croped cells images, given a data.frame specifying
 #the xpos, ypos, path and image name
-#ToDo: Allow not to correct for image border, and insert black background
-get.cell.image.data.frame <- function(X,box.size=20,...){
+get.cell.image.data.frame <- function(X,box.size=20,contained.box=FALSE,bg.col=0,...){
 	require(EBImage)
 
 	#renaming data.frame X to img.desc for clarity
@@ -315,13 +313,27 @@ get.cell.image.data.frame <- function(X,box.size=20,...){
 			y0<-df[df$img.index==j,"ypos"]-box.size
 			y1<-df[df$img.index==j,"ypos"]+box.size
           
-			#correcting for image border
-			if(x0<1)	 {x0<-1;					x1<-2*box.size+1}    
-			if(x1>max.x) {x0<-max.x-2*box.size;		x1<-max.x 		}
-			if(y0<1)	 {y0<-1;					y1<-2*box.size+1}
-			if(y1>max.y) {y0<-max.y-2*box.size;		y1<-max.y		}
- 			
-			cell.image[[j]]<-img[x0:x1,y0:y1]
+			left.margin=0
+			right.margin=0
+			top.margin=0
+			bottom.margin=0
+
+			if(contained.box){
+				#correcting for image border
+				if(x0<1)	 {x0<-1;					x1<-2*box.size+1}    
+				if(x1>max.x) {x0<-max.x-2*box.size;		x1<-max.x 		}
+				if(y0<1)	 {y0<-1;					y1<-2*box.size+1}
+				if(y1>max.y) {y0<-max.y-2*box.size;		y1<-max.y		}
+			}else{
+				if(x0<1)	 {left.margin=1-x0;			x0<-1;}    
+				if(x1>max.x) {right.margin=x1-max.x;    x1<-max.x}
+				if(y0<1)	 {top.margin=1-y0;			y0<-1;}
+				if(y1>max.y) {bottom.margin=y1-max.y;  	y1<-max.y;}
+			}
+
+			tmp<-EBImage::Image(bg.col,colormode="Grayscale", dim = c(2*box.size+1,2*box.size+1))
+			tmp[(left.margin+1):(2*box.size+1-right.margin),(top.margin+1):(2*box.size+1-bottom.margin)]<-img[x0:x1,y0:y1]
+			cell.image[[j]]<-tmp
 		}
 	}
 
@@ -380,13 +392,67 @@ print.summary.cell.image<-function(x,...){
 #*************************************************************************#
 #public 
 print.cell.image<-function(x,nx=ceiling(sqrt(length(x))),...){
-	display(
-		tile(normalize(combine(x))
+	EBImage::display(
+		EBImage::tile(EBImage::normalize(EBImage::combine(x))
 			, nx=nx
 		)
 	,title=paste("cell.image from",toString(unique(attr(x,"img.desc")$path))))
 }
 
+#*************************************************************************#
+#public 
+#ToDo: implement annotate
+show.img<-function(X,pos,t.frame=0,channel="BF.out",image.title=""
+					,annotate=NULL,cross=!QC,QC.filter=FALSE,subset=TRUE,cross.col=c(0.1,0.9)
+					,display=interactive(),normalize=TRUE,...){
+
+	cross=substitute(cross)	
+	subset=substitute(subset)	
+
+	#library EBImage
+    require(EBImage)
+    if(any(!is.element(pos,X$data$pos))) stop("Selected positions not in dataset")    
+	
+	arg.df=data.frame(pos=pos,t.frame=t.frame,channel=channel)
+	img.df=join(arg.df,X$images,by=c("pos","t.frame","channel"))
+	img.df=data.frame(img.df,index=1:dim(img.df)[1])
+
+	#cheking that the image files exist
+	img.fnames=with(img.df,paste(path,image,sep="/"))
+	img.fnames.exist=file.exists(img.fnames)
+	if(!all(img.fnames.exist))
+		stop("image file ",img.fnames[!img.fnames.exist][1]," not found")
+	
+	#loading the images
+	img.list<-list()
+	for(i in 1:length(img.fnames)){
+		img.list[[i]]<-EBImage::readImage(img.fnames[i])
+		if(isTRUE(normalize)) img.list[[i]]<-EBImage::normalize(img.list[[i]])
+	}
+
+	#subsetting the data
+	X$data<-X$data[X$data$pos%in%pos&X$data$t.frame%in%t.frame,]
+	if(isTRUE(QC.filter) && class(X$data$QC)=="logical") X$data=subset(X$data,QC)
+	if(!isTRUE(subset)) X$data<-subset(X$data,eval(subset,X$data))
+		
+	#adding crosses to image
+	if(!is.null(cross)){ 
+		cross.df=data.frame(subset(X$data,select=c(pos,t.frame,cellID,xpos,ypos)),cross=as.logical(eval(cross,X$data)))
+		for(i in img.df$index){
+			cell.df=cross.df[cross.df$pos==img.df$pos[img.df$index==i]&cross.df$t.frame==img.df$t.frame[img.df$index==i]&cross.df$cross,c("xpos","ypos")]
+			for(j in 1:length(cross.col))
+				img.list[[i]]<-drawCross(img.list[[i]],cell.df$xpos+(j-1),cell.df$ypos,col=cross.col[j])
+			#display(img.list[[i]])
+		}
+	}
+	
+	if(!is.null(annotate)) stop("annotate not implemented yet, sorry")
+	
+	SHOW_IMAGE<-EBImage::combine(img.list)
+	if(display) EBImage::display(SHOW_IMAGE,title="show.image")
+	return(invisible(SHOW_IMAGE))
+}
+show.image<-show.img
 
 #####################cell.image transformation functions###################
 cnormalize<-function(X=NULL,normalize.group=c("channel"),...){
@@ -397,8 +463,8 @@ cnormalize<-function(X=NULL,normalize.group=c("channel"),...){
 
 	img.list<-dlply(img.desc(X),normalize.group,function(df)df$img.index)
 	for(i in names(img.list)){
-		img<-combine(X[img.list[[i]]])
-		img<-normalize(img,separate=FALSE)
+		img<-EBImage::combine(X[img.list[[i]]])
+		img<-EBImage::normalize(img,separate=FALSE)
 		for(j in 1:length(img.list[[i]]))
 			X[[img.list[[i]][j]]]<-img[,,j]
 	}
@@ -406,8 +472,129 @@ cnormalize<-function(X=NULL,normalize.group=c("channel"),...){
 	return(X)
 }
 
+add.nucleus.boundary<-function(X=NULL,radii=c(2,3,4,5,6,7),pos.nucl.channel="YFP",col=0.75,...){
+	
+	if(is.null(X)) return(c("xpos","ypos","xpos.nucl.?","xpos.nucl.?"))
+	
+	db=img.desc(X)
+	xpos.nucl.var=paste("xpos.nucl.",tolower(substr(pos.nucl.channel,1,1)),sep="")
+	ypos.nucl.var=paste("ypos.nucl.",tolower(substr(pos.nucl.channel,1,1)),sep="")
+	
+	for(i in 1:length(X)){
+		img<-X[[i]]
+		xcenter=ceiling(dim(X[[i]])[2]/2)+db[i,xpos.nucl.var]-db[i,"xpos"]
+		ycenter=ceiling(dim(X[[i]])[1]/2)+db[i,ypos.nucl.var]-db[i,"ypos"]
+		for(r in radii){
+			img<-EBImage::drawCircle(img,xcenter,ycenter,r,col=col)
+		}
+		X[[i]]<-img
+	}
+
+	return(X)
+}
+
+add.maj.min.axis<-function(X=NULL,col=0.75,angle.var=NA,...){
+	
+	if(is.null(X)) return(c("xpos","ypos","maj.axis","min.axis"))
+	
+	db=img.desc(X)
+	for(i in 1:length(X)){
+		img<-X[[i]]
+		xcenter=ceiling(dim(X[[i]])[2]/2)
+		ycenter=ceiling(dim(X[[i]])[1]/2)
+		angle=0
+		if(!is.na(angle.var)) angle=db[i,angle.var]
+		majAxis=db[i,"maj.axis"]/2
+		minAxis=db[i,"min.axis"]/2
+		img<-drawLine(img,round(xcenter-majAxis*cos(angle)),round(ycenter+majAxis*sin(angle)),round(xcenter+majAxis*cos(angle)),round(ycenter-majAxis*sin(angle)))
+		img<-drawLine(img,round(xcenter-minAxis*sin(angle)),round(ycenter-minAxis*cos(angle)),round(xcenter+minAxis*sin(angle)),round(ycenter+minAxis*cos(angle)))
+		X[[i]]<-img
+	}
+
+	return(X)
+}
 
 
+#####################General Image Manipulation Functions###################
+
+drawCross<-function(img, x, y, size=2, col=0.75, z=1){
+   EBImage:::validImage(img)
+    if (EBImage:::colorMode(img) == EBImage:::Color) 
+        stop("this method doesn't support the 'Color' color mode")
+    if (any(is.na(img))) 
+        stop("'img' shouldn't contain any NAs")
+    if (missing(x)) stop("'x' is missing")
+    if (missing(y)) stop("'y' is missing")
+    if (z < 1 | z > EBImage:::getNumberOfFrames(img, "render")) 
+        stop("'z' must be a positive integer lower than the number of image frames")
+    if (EBImage:::colorMode(img) == Color) {
+        rgb = as.numeric(col2rgb(col)/255)
+        if (length(rgb) != 3 || any(is.na(rgb))) 
+            stop("In Color mode, 'col' must be a valid color")
+    } else {
+        rgb = as.numeric(c(col, 0, 0))
+        if (length(rgb) != 3 || any(is.na(rgb))) 
+            stop("In Grayscale mode, 'col' must be a scalar value")
+    }
+
+	nrow=dim(img)[1]
+	ncol=dim(img)[2]
+	boolv=vector(mode = "logical",nrow*ncol)
+	
+	boolv[x+ncol*y]<-TRUE
+	if(size>0){
+		for(i in 1:(size)){
+			boolv[(x+i)+ncol*(y+i)]<-TRUE
+			boolv[(x+i)+ncol*(y-i)]<-TRUE
+			boolv[(x-i)+ncol*(y+i)]<-TRUE
+			boolv[(x-i)+ncol*(y-i)]<-TRUE
+		}
+	}
+
+	boolm=matrix(boolv,nrow=nrow,ncol=ncol)
+	img[boolm]<-col
+	invisible(img)
+}
+
+drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1) 
+{
+    EBImage:::validImage(img)
+    if (EBImage:::colorMode(img) == EBImage:::Color) 
+        stop("this method doesn't support the 'Color' color mode")
+    if (any(is.na(img))) 
+        stop("'img' shouldn't contain any NAs")
+    if (missing(x1)) stop("'x1' is missing")
+    if (missing(y1)) stop("'y1' is missing")
+    if (missing(x2)) stop("'x2' is missing")
+    if (missing(y2)) stop("'y2' is missing")
+    if (z < 1 | z > EBImage:::getNumberOfFrames(img, "render")) 
+        stop("'z' must be a positive integer lower than the number of image frames")
+    xy2z = as.integer(c(x1, y1, x2, y2, z - 1))
+    if (length(xy2z) != 5 || any(is.na(xy2z))) 
+        stop("'x1', 'y1', 'x2', 'y2' and 'z' must be scalar values")
+    if (EBImage:::colorMode(img) == Color) {
+        rgb = as.numeric(col2rgb(col)/255)
+        if (length(rgb) != 3 || any(is.na(rgb))) 
+            stop("In Color mode, 'col' must be a valid color")
+    } else {
+        rgb = as.numeric(c(col, 0, 0))
+        if (length(rgb) != 3 || any(is.na(rgb))) 
+            stop("In Grayscale mode, 'col' must be a scalar value")
+    }
+
+	boolm=matrix(FALSE,nrow=dim(img)[1],ncol=dim(img)[2])
+	if(x1==x2){
+		boolm[x1,min(y1,y2):max(y1,y2)]<-TRUE
+	}else if(y1==y2){
+		boolm[min(x1,x2):max(x1,x2),y1]<-TRUE
+	}else{
+		for(i in min(x1,x2):max(x1,x2))
+			for(j in min(y1,y2):max(y1,y2))
+				boolm[i,j]=abs((y1-y2)*i+(x2-x1)*j+x1*y2-x2*y1)<abs(x1-x2)/sqrt(2)
+	}
+	img[boolm]<-col
+	invisible(img)
+}
 
 #####################Private Functions#####################################
 
