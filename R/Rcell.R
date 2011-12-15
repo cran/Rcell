@@ -3,10 +3,11 @@
 
 #Strong dependence on ggplot2 package
 .onAttach <- function(lib, pkg, ...) {
-	theme_set(theme_bw())
+	theme_set(Rcell::theme_minimal_cb())
 }
 
 ##################### Package Constants #################################
+.conflicts.OK=TRUE
 .CELLID_ID_VARS=c("pos","t.frame","cellID")
 .CELLID_ID_VARS_DERIV=c(.CELLID_ID_VARS,"ucid","time")
 .CELLID_DROP_VARS=c("flag","num.pix","con.vol.1")
@@ -17,7 +18,6 @@
 #loads a cellID output to a cell.data object
 #ToDo: fix bf as fluorescence option of cellID, with image.info table
 #ToDo: when bf_as_fl string BF_ appears as channel identifier
-#ToDo: warn when no pos folders are found!!!!s
 load.cellID.data <-
 function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
             path=getwd(),basename="out"
@@ -42,6 +42,9 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 	count=0
 	posdir.index=array(-1,dim=c(length(posdir)))
 	column.names=c() #variable to assert all output_all have the same columns
+	
+	#checking if there are Pos folders to be loaded
+	if(length(posdir)==0) stop("No Pos folder found in specified path or working directory.")
 
 	cat("reading positions...\n") 
 	for(i in 1:length(posdir)){
@@ -223,6 +226,14 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 		pos.data[[ipos]]<-curr.pos.data
 	}
 	cat("\n") 
+
+	#checking the number of columns after reshaping
+	colNum.pos.data<-unlist(lapply(pos.data,function(x)dim(x)[2]))
+	if(length(unique(colNum.pos.data))>1){
+		print(data.frame(pos=loaded.pos,variables=colNum.pos.data))
+		stop("Positions have different number of variables after reshaping.")
+	}
+
 	pos.data<-do.call("rbind",pos.data)
 
 	#################################################################
@@ -389,10 +400,8 @@ as.cell.data.default <- as.cell.data.list
 #*************************************************************************#
 #public
 #merges a cellID dataset and a data.frame together
-#ToDo: allow add=T when merging
 #ToDo: merge 2 cell.data together
-#ToDo: handle NAs in merging variables 
-merge.cell.data<-function(x,y,by=NULL,na.rm=FALSE,...){
+merge.cell.data<-function(x,y,by=NULL,na.rm=FALSE,add=FALSE,warn=TRUE,...){
 	on.exit(gc())
 	gc()
 	join.by=by
@@ -413,7 +422,14 @@ merge.cell.data<-function(x,y,by=NULL,na.rm=FALSE,...){
 	merged.vars=setdiff(names(y),join.by)
 	if(length(merged.vars)==0) stop("using all variables to merge by, no variables left to add to the dataset")
 	rm.vars=intersect(names(x$data),merged.vars)
-	#if(length(rm.vars)>0) x$data=subset(x$data,select=setdiff(names(x$data),rm.vars))
+	if(isTRUE(add)){
+		if(length(rm.vars)==0){
+			if(isTRUE(warn)) warning("add=TRUE, but merging",paste(merged.vars,collapse=", ")," for the first time")
+			add=FALSE
+		} else {
+			old.db<-subset(x$data,select=rm.vars)
+		}
+	}
 	for(i in rm.vars) x$data[,i]<-NULL
 	
 	
@@ -421,8 +437,6 @@ merge.cell.data<-function(x,y,by=NULL,na.rm=FALSE,...){
 	x$variables$merged=unique(c(x$variables$merged,merged.vars))
 	x$variables$merged.by=union(x$variables$merged.by,join.by)
 	x$variables$all=union(x$variables$all,merged.vars)
-	#if(setequal(join.by,intersect(join.by,x$variables$as.factor)))  #esto resulto ser confuso
-	#	x$variables$as.factor=union(x$variables$as.factor,merged.vars)
 
 	#checking for repeted combinations of join.by variables in y
 	agg=aggregate(subset(y,select=merged.vars[1]),as.list(subset(y,select=join.by)),FUN=length)
@@ -436,7 +450,8 @@ merge.cell.data<-function(x,y,by=NULL,na.rm=FALSE,...){
 	join.by.NA.sum<-sum(is.na(tmp))
 	if(join.by.NA.sum>0){ #dealing with NAs in join variables
 		if(!na.rm) stop(join.by.NA.sum," NAs found in merging variables. To proceed removing these registers use na.rm=T")
-		warning(join.by.NA.sum," registers with NAs in merging variables eliminated")
+		if(isTRUE(add)) stop("na.rm and add are not compatible arguments")
+		if(isTRUE(warn)) warning(join.by.NA.sum," registers with NAs in merging variables eliminated")
 		x$data<-join(x$data,y,by=join.by,type="left")
 	} else { #no NAs, working for performance	
 		tmp<-join(tmp,y,by=join.by,type="left")
@@ -446,6 +461,14 @@ merge.cell.data<-function(x,y,by=NULL,na.rm=FALSE,...){
 			x$data[[i]]<-tmp[[i]]
 		}
 		gc()
+		
+		#adding previous for NAs in new variable
+		if(isTRUE(add)){
+			for(i in names(old.db)){
+				x$data[[i]]<-ifelse(is.na(x$data[[i]]),old.db[[i]],x$data[[i]])
+			}
+		}
+	
 	}
 		
 	.print.merged.vars(.format.merged.vars(x,merged.vars=merged.vars),description="merged vars")
@@ -490,8 +513,8 @@ transform.cell.data <- function(`_data`,...,QC.filter=TRUE){
 	for(i in names(dots)){
 		`_data`$transform[[i]]=list(call=dots[[i]],by=NA,QC.filter=QC.filter)
 		ivars=.get_var_names(dots[[i]],names(`_data`$data))
-		if(setequal(ivars,intersect(ivars,`_data`$variables$as.factor)))
-			`_data`$variables$as.factor=union(`_data`$variables$as.factor,i)
+		#if(setequal(ivars,intersect(ivars,`_data`$variables$as.factor)))
+		#	`_data`$variables$as.factor=union(`_data`$variables$as.factor,i)
 	}
 	`_data`$variables$transformed=names(`_data`$transform)
 	`_data`$variables$all=unique(c(`_data`$variables$all,names(dots)))
@@ -509,7 +532,7 @@ transform.by.data.frame <- function(`_data`,.by,...,subset=NULL){
 	on.exit(gc())
 	subset=substitute(subset)
 
-	if(!is.null(subset)) `_data`<-subset(`_data`,eval(subset,`_data`))
+	if(!is.null(subset)) `_data`<-`[.data.frame`(`_data`,eval(subset,`_data`),)
 
 	#doing the transformation	
 	`_data`<-do.call("rbind", dlply(`_data`,.by,transform,...)) 
@@ -548,8 +571,8 @@ transform.by.cell.data <- function(`_data`,.by,...,QC.filter=TRUE){
 	for(i in names(dots)){
 		`_data`$transform[[i]]=list(call=dots[[i]],by=.by,QC.filter=QC.filter)
 		ivars=union(.get_var_names(dots[[i]],names(`_data`$data)),names(.by))
-		if(setequal(ivars,intersect(ivars,`_data`$variables$as.factor)))
-			`_data`$variables$as.factor=union(`_data`$variables$as.factor,i)		
+		#if(setequal(ivars,intersect(ivars,`_data`$variables$as.factor)))
+		#	`_data`$variables$as.factor=union(`_data`$variables$as.factor,i)		
 	}
 	`_data`$variables$transformed=names(`_data`$transform)
 	`_data`$variables$all=unique(c(`_data`$variables$all,names(dots)))
@@ -566,22 +589,23 @@ transform.by <- function(`_data`,.by,...) UseMethod("transform.by")
 #calculates the total number of frames in which a cell was found (after QC filter)
 update.n.tot <- function(object,QC.filter=TRUE,...){
 	on.exit(gc())
-	#transform.by(object,.(pos,cellID),n.tot=length(t.frame),QC.filter=QC.filter)
-	if(isTRUE(QC.filter))
-		tdb<-do.call("rbind"
-			,dlply(subset(object$data,QC,select=c("ucid","t.frame","pos","cellID")),.(pos,cellID)
-				,transform,n.tot=length(t.frame))) 	
-	else 
-		tdb<-do.call("rbind"
-			,dlply(subset(object$data,select=c("ucid","t.frame","pos","cellID")),.(pos,cellID)
-				,transform,n.tot=length(t.frame)))
 
-	tmp<-join(subset(object$data,select=c("ucid","t.frame"))
-			 ,subset(tdb,select=unique(c("ucid","t.frame","n.tot")))
-			 ,by=c("ucid","t.frame")) #adding created variables to the dataset
+	#transform.by(object,.(pos,cellID),n.tot=length(t.frame),QC.filter=QC.filter)
+	if(isTRUE(QC.filter)){
+		tdb<-ddply(subset(object$data,object$data$QC,select=c("ucid","t.frame")),.(ucid)
+				,function(df)data.frame(n.tot=length(df$t.frame))) 	
+	}else{ 
+		tdb<-ddply(subset(object$data,select=c("ucid","t.frame")),.(ucid)
+				,function(df)data.frame(n.tot=length(df$t.frame))) 
+	}
+
+	tmp<-join(subset(object$data,select=c("ucid"))
+			 ,subset(tdb,select=c("ucid","n.tot"))
+			 ,by=c("ucid")) #adding created variables to the dataset
 
 	object$data$n.tot<-tmp$n.tot		 
-			 
+	object$variables$all<-union(object$variables$all,"n.tot")	
+		 
 	return(object)		 
 }
 
@@ -593,12 +617,12 @@ select.cells <- function(X, subset = TRUE, n.tot.subset=NULL ,QC.filter=TRUE){
 
 	if(isTRUE(QC.filter) && class(X$data$QC)=="logical")
 		X$data=subset(X$data,QC)
-	X$data<-subset(X$data,eval(subset,X$data))
+	X$data<-X$data[eval(subset,X$data),]
 	
 	if(!missing(n.tot.subset)){
 		n.tot.subset=substitute(n.tot.subset)
 		X<-update.n.tot(X,QC.filter=QC.filter)
-		X$data<-subset(X$data,eval(n.tot.subset,X$data))
+		X$data<-X$data[eval(n.tot.subset,X$data),]
 	}
 	
 	return(unique(X$data$ucid))
@@ -612,17 +636,10 @@ select.vars <- function(X,select="all",exclude=NULL){
 
 #*************************************************************************#
 #removes selected variables from the dataset
-#ToDo: use subset to code this funcion
 remove.vars <- function(X,select,exclude=NULL){
 	on.exit(gc())
-	
 	rm.vars=.select(X$variables,select,exclude)
-	
-	for(i in intersect(X$variables$transform,rm.vars))
-		X$transform[[i]]<-NULL
-	for(i in names(X$variables))
-		X$variables[[i]]<-setdiff(X$variables[[i]],rm.vars)
-	for(i in rm.vars) X$data[[i]]<-NULL
+	X<-subset.cell.data(X,exclude=rm.vars)
 	return(X)
 }
 	
@@ -645,7 +662,7 @@ subset.cell.data <- function(x,subset=TRUE,select="all",exclude=NULL,QC.filter=F
 	select.vars=unique(c(select.vars,x$variables$id.vars,x$variables$QC))
 	exclude.vars=c()
 	if(!isTRUE(select.vars)) exclude.vars=setdiff(x$variables$all,select.vars)
-	x$data<-subset(x$data,eval(subset,x$data),select=select.vars)
+	x$data<-x$data[eval(subset,x$data),select.vars]
 
 	attributes(x$data$QC)<-QC.attr
 
@@ -680,30 +697,39 @@ subset.cell.data <- function(x,subset=TRUE,select="all",exclude=NULL,QC.filter=F
 #*************************************************************************#
 #public
 #coerce a cell.data object to a data.frame
-as.data.frame.cell.data <- function(x, row.names = NULL, optional = FALSE,...,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE){
+as.data.frame.cell.data <- function(x, row.names = NULL, optional = FALSE,...
+	,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE,na.rm=TRUE){
+
 	subset=substitute(subset)
 	
 	if(QC.filter  && class(x$data$QC)=="logical")
-		data=subset(x$data,QC)
+		data=x$data[x$data$QC,]
 	else
 		data=x$data
 	
-	data=subset(data,eval(subset,data),select=.select(x$variables,select,exclude))	
+	select.vars<- .select(x$variables,select,exclude)
+	if(isTRUE(select.vars)) select.vars<-names(data)
+	data=data[eval(subset,data),select.vars]
+	if(isTRUE(na.rm)) data<-na.omit(data)	
 	return(as.data.frame.data.frame(data,row.names=row.names,optional=optional,...))
 }
 
 #*************************************************************************#
 #public
 #extract the $data data.frame from the cell.data object
-cdata <- function(x,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE,...){
+cdata <- function(x,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE,na.rm=TRUE,...){
 	subset=substitute(subset)
 	
 	if(QC.filter  && class(x$data$QC)=="logical")
-		data=subset(x$data,QC)
+		data=x$data[x$data$QC,]
 	else
 		data=x$data
 	
-	return(subset(data,eval(subset,data),select=.select(x$variables,select,exclude)))
+	select.vars<- .select(x$variables,select,exclude)
+	if(isTRUE(select.vars)) select.vars<-names(data)
+	data<-data[eval(subset,data),select.vars]
+	if(isTRUE(na.rm)) data<-na.omit(data)
+	return(data)
 }
 "[[.cell.data" <- cdata
 
@@ -980,7 +1006,7 @@ summary.cell.data <-function(object,...){
 		})
 		summary$QC.history=transform(summary$QC.history,can.undo=.id %in% names(attributes(object$data$QC)))
 	}
-	
+
 	
 	if(length(object$subset.history)>0){
 		summary$subset.history<-
@@ -1005,7 +1031,7 @@ aggregate.cell.data <- function(x, form.by, ..., FUN=mean
 			,args[intersect(c("x","subset","QC.filter"),names(args))])
 		aggr.args<-list(form.by)
 		if("..." %in% names(args))aggr.args<-args["..."]
-		aggr.args$data<-subset.data.frame(.data,select=intersect(all.names(form.by),x$variables$all))
+		aggr.args$data<- .data[,intersect(all.names(form.by),x$variables$all)]
 		aggr.args$FUN<-FUN
 		aggr=do.call("aggregate",aggr.args)
 	} else { #by argument
@@ -1047,7 +1073,7 @@ reshape.cell.data<-function(data,formula = pos + cellID ~ variable + t.frame, fu
 	if(isTRUE(measure.vars)) measure.vars=setdiff(select.vars,id.vars)
 	select.vars=union(id.vars,measure.vars)	
 
-	data$data<-subset(data$data,eval(subset,data$data),select=select.vars)
+	data$data<-data$data[eval(subset,data$data),select.vars]
 
 	mdata=melt.data.frame(data$data, id.vars, measure.vars, variable_name = variable_name, na.rm = na.rm)
 	return(cast(mdata, formula = formula, fun.aggregate = fun.aggregate, ..., margins=margins, fill=fill))	
@@ -1066,10 +1092,16 @@ with.cell.data <- function(data,expr,subset=TRUE,select=NULL,exclude=NULL,QC.fil
 	select.vars=.select(data$variables,select,exclude)
 	if(isTRUE(select.vars)) select.vars<-data$variables$all
 	else select.vars=unique(c(select.vars,data$variables$id.vars,data$variables$QC))
-	data$data<-subset(data$data,eval(subset,data$data),select=select.vars)
+	data$data<-data$data[eval(subset,data$data),select.vars]
 
 	return(eval(expr,data$data))
 }
+
+#ToDo: function within.cell.data
+#*************************************************************************#
+#public
+#Evaluate an R expression within de cell.data object (assigments allowed
+#within.cell.data
 
 ##################### Plotting Functions ##################################
 
@@ -1078,9 +1110,6 @@ with.cell.data <- function(data,expr,subset=TRUE,select=NULL,exclude=NULL,QC.fil
 # Addapted from qplot in package ggplot2
 # cplot is a convenient wrapper function for creating ggplot objects of a cell.data object.
 # ToDo: Allow expresion when y is a vector
-# ToDo: debug asp
-# ToDo: allow variables as ..density.. , ..count.. , etc. Not working currently
-# ToDo: bug in cplot(X,x=f.tot.y,subset=t.frame==7,geom="density",color=AF.nM,yzoom=c(0,0.999999999999e-6))
 # ToDo: dont transform x and y to factor if log scale is used
 # ToDo: change behaviour of as.factor for x/y vs other aesthetics
 # ToDo: when using vector as y, use order of variables in vector to assign color (ordered factor)
@@ -1090,28 +1119,32 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
 				, stat=list(NULL), position=list(NULL), log = "", as.factor="as.factor"
 				, xlim = c(NA, NA), ylim = c(NA, NA), xzoom = c(NA,NA), yzoom = c(NA,NA)
 				, xlab = deparse(substitute(x)), ylab = deparse(substitute(y)), asp = NA
-				, select = NULL, exclude = NULL, QC.filter = TRUE, droplevels=TRUE
+				, select = NULL, exclude = NULL, na.rm = TRUE, QC.filter = TRUE, droplevels=TRUE
 				, main = NULL, add = FALSE, layer = FALSE) {
 				
   	subset=substitute(subset)
   	on.exit(gc())
   
+	#Asserting arguments
   	if(add&&layer) stop("add and layer are mutually exclusive arguments\n") 
   
+	#dealing with cell.data or data.frame
   	if(!is.null(X)){			
-		if(class(X)[1]=="cell.data") data=X$data
-		else if(class(X)[1]=="data.frame") data=X
+		if(is.cell.data(X)) data=X$data
+		else if(is.data.frame(X)) data=X
 		else stop("First argument should be of class cell.data or data.frame, not ",class(X)[1])
 	
 		#filtering by QC variable
-		if(class(data$QC)=="logical" && QC.filter){
-			if(class(X)[1]!="cell.data") cat("Filtering by QC variable\n")
-			data=subset(data,QC)
-		}
+		if(is.logical(data$QC) && QC.filter){
+			if(!is.cell.data(X)) cat("Filtering by QC variable\n")
+				data=data[data$QC,]
+			}
 	}
-
+	
   	argnames <- names(as.list(match.call(expand.dots=FALSE)[-1]))
   	arguments <- as.list(match.call()[-1])
+
+	#dealing with formula notation
   	if(isTRUE(try(is.formula(x),silent=TRUE))){
   		if(length(x)==3){ # y~x
   			argnames=c(argnames,"y")
@@ -1121,16 +1154,24 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
   			arguments$x=(x=x[[2]])
   		} else stop("formula should be of the form y~x or ~x")	
   	}
+
   	aesthetics <- compact(arguments[ggplot2:::.all_aesthetics])
-  	aesthetics <- aesthetics[!is.constant(aesthetics)]
-  	var_names <- .get_var_names(arguments,names(data))	
-  	aesthetics <- aesthetics[aesthetics %in% var_names | sapply(aesthetics,class)=="call"] #defining aesthetics as dataset variables only
+  	aesthetics <- aesthetics[!ggplot2:::is.constant(aesthetics)]
+
+	#defining aesthetics as dataset variables only
+  	var_names <- .get_var_names(arguments,names(data),warn=TRUE)	
+  	aesthetics <- aesthetics[aesthetics %in% var_names | sapply(aesthetics,class)=="call"] 
+
   	aes_names <- names(aesthetics)
-  	aesthetics <- rename_aes(aesthetics)
+  	aesthetics <- ggplot2:::rename_aes(aesthetics)
   	class(aesthetics) <- "uneval"
- 
+
+	#dealing with new data
   	if(!is.null(X)){ 
+		
 		inherit.aes=FALSE 
+		
+		#no x aesthetic
 		if(is.null(substitute(x))) 
 			if(!layer){ stop("x aesthetic required for new plot")
 			}else{
@@ -1139,23 +1180,27 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
 				inherit.aes=TRUE
 			}
 		
+		#variable selection to keep in ggplot object
 		if(!is.null(select)|!is.null(exclude)){
 			if(is.cell.data(X)) var_names=union(var_names,.select(X$variables,select,exclude))
 			else var_names=union(var_names,.select(list(all=names(data)),select,exclude))
 		}
 
-		if(!is.null(subset))
-			data=subset(data,eval(subset,data,parent.frame(n=1)),select=var_names)
-		else 
-			data=subset(data,select=var_names)
-			
-		if(droplevels) data<-droplevels(data)			
+		#subsetting the data
+		if(!is.null(subset)) data=data[eval(subset,data,parent.frame(n=1)),]
+		if(dim(data)[1]==0) stop("no data left after subset")
+		data=data[var_names] 
+		
+		#removing NAs
+		if(isTRUE(na.rm)) data<-na.omit(data)
+
+		#dropping unsed levels of factors	
+		if(droplevels & any(sapply(data,is.factor))) data<-droplevels(data)			
 		
     	#transforming as.factor variables to factors
 		if(!is.null(as.factor)){
 			if(is.cell.data(X)){
 				var_as_factors=intersect(var_names,.select(X$variables,as.factor))
-				#var_as_factors=setdiff(var_as_factors,.get_var_names(arguments[c("x","y")],X$variables$all)) #don´t transform x and y
 			} else if(is.data.frame(X)) {
 				var_as_factors=intersect(var_names,as.factor)
 			}
@@ -1165,16 +1210,17 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
 		}
 	}
   
+	#dealing with vectorial y aesthetic
   	sy=substitute(y)
   	if(class(sy)=="call")
-		if(sy[[1]]=="c"){
-			if(is.null(X)) stop("data required when using multiple \"y\" mapping\n")
-			data=melt(data,measure.vars=.get_var_names(sy,names(data)))
-			aesthetics$y=quote(value)
-			if(is.null(aesthetics$colour)) aesthetics$colour=quote(variable)
-			aes_names <- names(aesthetics)
-			aesthetics <- rename_aes(aesthetics)		
-		}
+			if(sy[[1]]=="c"){
+				if(is.null(X)) stop("data required when using multiple \"y\" mapping\n")
+				data=melt(data,measure.vars=.get_var_names(sy,names(data)))
+				aesthetics$y=quote(value)
+				if(is.null(aesthetics$colour)) aesthetics$colour=quote(variable)
+				aes_names <- names(aesthetics)
+				aesthetics <- ggplot2:::rename_aes(aesthetics)		
+			}
   
   
   	# Work out plot data, and modify aesthetics, if necessary
@@ -1195,10 +1241,12 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
 
   	env <- parent.frame()
 
-  	# Add geoms/statistics
-  	if (is.proto(position)) position <- list(position)
-
+	#creating layer list
   	l=list()
+
+
+  	# Add geoms/statistics
+  	if (proto:::is.proto(position)) position <- list(position)
   	mapply(function(g, s, ps) {
     	if(is.character(g)) g <- ggplot2:::Geom$find(g)
     	if(is.character(s)) s <- ggplot2:::Stat$find(s)
@@ -1207,35 +1255,33 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
     	params <- arguments[setdiff(names(arguments), c(aes_names, argnames))]
     	params <- lapply(params, eval, parent.frame(n=1))
     	if(!is.null(X)){
-			l <<- c(l, layer(geom=g, stat=s, geom_params=params, stat_params=params, position=ps, data=data
-						, inherit.aes=inherit.aes, mapping=aesthetics) )
+			l <<- c(l, list(layer(geom=g, stat=s, geom_params=params, stat_params=params
+								 ,position=ps, data=data, inherit.aes=inherit.aes, mapping=aesthetics) ))
 		}else{
-			l <<- c(l, layer(geom=g, stat=s, geom_params=params, stat_params=params, position=ps, mapping=aesthetics) )
+			l <<- c(l, list(layer(geom=g, stat=s, geom_params=params, stat_params=params
+								,position=ps, mapping=aesthetics)))
 		}
-	
 	}, geom, stat, position)
 
-  
-  	if(!is.null(facets)){	
-		if (is.formula(facets) && length(facets) == 2) {
-			l <- c(l, facet_wrap(facets) )
-		} else {
-			l <- c(l, facet_grid(facets = deparse(facets), margins = margins) )
-		}
-  	} 
+	#dealing with facets
+  	if (is.null(facets)) {
+    	l <- c(l,list(facet_null()))
+  	} else if (is.formula(facets) && length(facets) == 2) {
+    	l <- c(l,list(facet_wrap(facets)))
+  	} else {
+    	l <- c(l,list(facet_grid(facets = deparse(facets), margins = margins)))
+  	}    
 
   	logv <- function(var) var %in% strsplit(log, "")[[1]]
 
-  	if (logv("x")) l <- c(l, scale_x_log10())
-  	if (logv("y")) l <- c(l, scale_y_log10())
+  	if (logv("x")) l <- c(l, list(scale_x_log10()))
+  	if (logv("y")) l <- c(l, list(scale_y_log10()))
   
-  	if (!is.na(asp)) l <- c(l, opts(aspect.ratio = asp))
+  	if (!missing(xlim)) l <- c(l, list(xlim(xlim)))
+  	if (!missing(ylim)) l <- c(l, list(ylim(ylim)))
 
-  	if (!missing(xlim)) l <- c(l, xlim(xlim))
-  	if (!missing(ylim)) l <- c(l, ylim(ylim))
-
-  	if (!missing(xzoom)) l <- c(l, xzoom(xzoom))
-  	if (!missing(yzoom)) l <- c(l, yzoom(yzoom))
+  	if (!missing(xzoom)) l <- c(l, list(xzoom(xzoom)))
+  	if (!missing(yzoom)) l <- c(l, list(yzoom(yzoom)))
  
   	if(layer)
 		return(l)
@@ -1245,7 +1291,8 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
 		p <- p + l 
 		if (!missing(xlab)) p <- p + xlab(xlab)
 		if (!missing(ylab)) p <- p + ylab(ylab)
-		if (!is.null(main)) p <- p + opts("title" = main)
+		if (!is.null(main)) p <- p + opts(title = main)
+	  	if (!is.na(asp)) p <- p + opts(aspect.ratio = asp)
 		return(p)
   	}  
 }
@@ -1367,17 +1414,18 @@ clayermedian <- function(...,geom=c("point","errorbar","line")) {
 #*************************************************************************#
 #public
 #defines the zoom of the plot. Different of limits because its done after statistical transformations
+#ToDo: log parameter for log axis
 zoom <- function(xzoom=c(NA,NA),yzoom=c(NA,NA),nx.breaks=n.breaks,ny.breaks=n.breaks,n.breaks=7){
   if((!missing(xzoom))&(!missing(yzoom))){
-	return(c(coord_cartesian(xlim=xzoom,ylim=yzoom), scale_x_continuous(breaks=pretty(xzoom,n=nx.breaks))
+	return(list(coord_cartesian(xlim=xzoom,ylim=yzoom), scale_x_continuous(breaks=pretty(xzoom,n=nx.breaks))
 												   , scale_y_continuous(breaks=pretty(yzoom,n=ny.breaks))))
   }else{
- 	if (!missing(xzoom)) return(c(coord_cartesian(xlim=xzoom) , scale_x_continuous(breaks=pretty(xzoom,n=nx.breaks))))
-	if (!missing(yzoom)) return(c(coord_cartesian(ylim=yzoom) , scale_y_continuous(breaks=pretty(yzoom,n=ny.breaks))))
+ 	if (!missing(xzoom)) return(list(coord_cartesian(xlim=xzoom) , scale_x_continuous(breaks=pretty(xzoom,n=nx.breaks))))
+	if (!missing(yzoom)) return(list(coord_cartesian(ylim=yzoom) , scale_y_continuous(breaks=pretty(yzoom,n=ny.breaks))))
   }
 }
-xzoom <- function(xzoom=c(NA,NA),nx.breaks=7) zoom(xzoom=xzoom,nx.breaks=nx.breaks)
-yzoom <- function(yzoom=c(NA,NA),ny.breaks=7) zoom(yzoom=yzoom,ny.breaks=ny.breaks)
+xzoom <- function(xzoom=c(NA,NA),nx.breaks=7) Rcell::zoom(xzoom=xzoom,nx.breaks=nx.breaks)
+yzoom <- function(yzoom=c(NA,NA),ny.breaks=7) Rcell::zoom(yzoom=yzoom,ny.breaks=ny.breaks)
 
 #*************************************************************************#
 #public
@@ -1552,8 +1600,7 @@ chclust<-cell.hclust
 #*************************************************************************#
 #private
 #select variables for subsetting
-#ToDo: allow speciall keyword "none" or "" with no warning
-.select <- function(variables,select=NULL,exclude=NULL){
+.select <- function(variables,select=NULL,exclude=NULL,warn=TRUE){
 	#expanding select
 	exp.select=c()
 	for(i in select){
@@ -1564,7 +1611,7 @@ chclust<-cell.hclust
 			if(length(ms)==1) exp.select=c(exp.select,variables[[ms]])
 			else {
 				ms=grep(glob2rx(i),variables$all,value=TRUE)
-				if(length(ms)==0&&!(select%in%c("","none"))) warning("unknown selected variable ",i)
+				if(length(ms)==0&&!(select%in%c("","none"))&&warn) warning("unknown selected variable ",i)
 				exp.select=c(exp.select,ms)
 			}
 		}
@@ -1578,7 +1625,7 @@ chclust<-cell.hclust
 		if(length(me)==1) exp.exclude=c(exp.exclude,variables[[me]])
 		else {
 			me=grep(glob2rx(i),variables$all,value=TRUE)
-			if(length(me)==0) warning("unknown excluded variable ",i)
+			if(length(me)==0&&warn) warning("unknown excluded variable ",i)
 			exp.exclude=c(exp.exclude,me)
 		}
 	}
@@ -1600,9 +1647,7 @@ chclust<-cell.hclust
 #*************************************************************************#
 #private
 #gets dataset variable names from aesthetics, managing class correctly
-#ToDo: usar all.vars en lugar de .get_call_name
-.get_var_names <- function(aes, names.data){
-	#browser()
+.get_var_names <- function(aes, names.data, warn=FALSE){
 	var_names<-c()
 	for(i in 1:length(aes)){
 		if(class(aes[[i]]) %in% c("call","(")){
@@ -1611,7 +1656,14 @@ chclust<-cell.hclust
 			var_names<-c(var_names,as.character(aes[[i]]))
 		}
 	}
-	return(intersect(names.data,var_names))
+
+	output<-intersect(names.data,var_names)
+	# if(isTRUE(warn)){
+		# var_names<-setdiff(var_names,as.character(aes$X))
+		# unk_vars<-setdiff(var_names,output)
+		# if(length(unk_vars)>0) warning(unk_vars, " not found in dataset",call.=FALSE, immediate. = TRUE)
+	# }
+	return(output)
 }
 
 #*************************************************************************#

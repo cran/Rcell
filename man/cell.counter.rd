@@ -1,5 +1,4 @@
-\name{cell-counter}
-\alias{cell-counter}
+\name{cell.counter}
 \alias{cell.counter}
 \alias{cardinality.plot}
 \alias{map.cells.points}

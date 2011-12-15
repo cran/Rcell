@@ -1,4 +1,5 @@
 export(load.cellID.data,load.cell.data)
+export(is.cell.data)
 
 export(as.cell.data)
 S3method(as.cell.data, list)
@@ -27,8 +28,6 @@ S3method("[[", cell.data)
 
 export(QC.filter,QC.undo,QC.reset,QC.execute)
 
-export(is.cell.data)
-
 S3method(print, cell.data)
 S3method(print, summary.cell.data)
 S3method(summary, cell.data)
@@ -44,20 +43,23 @@ S3method(reshape, default)
 S3method(with, cell.data)
 
 export(cplot,cplotmean,cplotmeans,clayer,clayermean,clayermeans)
+export(cplotmedian,clayermedian)
 S3method(plot, cell.data)
 export(zoom, xzoom, yzoom)
+export(vplayout)
+
+importFrom(utils,modifyList)
+export(theme_minimal, theme_minimal_cb, theme_minimal_cb_L, theme_minimal_light)
+export(theme_fullframe, theme_black, theme_complete_bw, theme_invisible)
 
 export(cell.hclust,chclust)
-
 
 export(append.in.focus,append.z.scan,append.memRec.y)
 export(append.anular.y,append.anular.c,append.anular.r)
 export(append.oif.time,append.oif.interval)
-
 export(cardinality.plot,map.cells.points)
 
 export(paste_data_error,paste_parameter,paste_intercept_slope,paste_EC50_n)
-export(vplayout)
 
 export(cimage,get.cell.image,is.cell.image,img.desc,show.img,show.image)
 S3method(cimage, cell.data)
@@ -69,8 +71,9 @@ S3method(get.cell.image, default)
 S3method(summary, cell.image)
 S3method(print, summary.cell.image)
 S3method(print, cell.image)
-export(cnormalize)
+S3method(plot, Image)
+export(cnormalize, ciciply, add.nucleus.boundary, add.maj.min.axis)
 
-
+export(.conflicts.OK)
 
 

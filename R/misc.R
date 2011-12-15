@@ -2,27 +2,37 @@
 #ToDo: test for vectorial input
 #ToDo: add examples to documentation
 #ToDo: see if using round_any simplyfies the code
-paste_data_error <- function(data,error,error.signif=1) {
+paste_data_error <- function(data,error,error.signif=1,plotmath=FALSE) {
 	data.digits=floor(log10(abs(ifelse(data==0,1,data))))
 	error.digits=floor(log10(abs(error)))
 	digits <- error.digits - error.signif + 1
 	pm.sign=intToUtf8(177)
+	if(isTRUE(plotmath)) pm.sign<-"%+-%"
 
-	data.str<-
-	ifelse(digits>=0
-		,as.character(10^digits*round(data/(10^digits)))
-		,formatC(10^digits*round(data/(10^digits)),digits=max(data.digits-error.digits+error.signif,1),format="fg",flag="#")
-	)
+	x=10^digits*round(data/(10^digits))
+	d=data.digits-error.digits+error.signif
+	data.str<-as.character(10^digits*round(data/(10^digits)))
+	for(i in (1:length(x))[!digits>=0])
+		data.str[i]<-sapply(x[i],formatC,digits=max(d[i],1),format="fg",flag="#")
 	
-	error.str<-
-	ifelse(digits>=0
-		,as.character(10^digits*round(error/(10^digits)))
-		,formatC(10^digits*round(error/(10^digits)),digits=abs(error.digits)+error.signif-as.numeric(error<1),format="fg",flag="#")
-	)
+	x=10^digits*round(error/(10^digits))
+	d=abs(error.digits)+error.signif-as.numeric(error<1)
+	error.str<-as.character(10^digits*round(error/(10^digits)))
+	#for(i in (1:length(x))[!digits>=0])
+	#	error.str[i]<-sapply(x[i],formatC,digits=d[i],format="fg",flag="#")
+
+# 	ifelse(digits>=0
+# 		,as.character(10^digits*round(data/(10^digits)))
+# 		,formatC(10^digits*round(data/(10^digits)),digits=max(data.digits-error.digits+error.signif,1),format="fg",flag="#")
+# 	)
+	
+# 	error.str<-
+# 	ifelse(digits>=0
+# 		,as.character(10^digits*round(error/(10^digits)))
+# 		,formatC(10^digits*round(error/(10^digits)),digits=abs(error.digits)+error.signif-as.numeric(error<1),format="fg",flag="#")
+# 	)
 		
 	return(paste(data.str,error.str,sep=pm.sign))
-	
-		
 }
 
 

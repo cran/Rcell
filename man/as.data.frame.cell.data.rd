@@ -11,11 +11,11 @@
 }
 \usage{
 \method{as.data.frame}{cell.data}(x,row.names=NULL,optional=FALSE,...,subset=TRUE
-  ,select=NULL,exclude=NULL,QC.filter=TRUE)
+  ,select=NULL,exclude=NULL,QC.filter=TRUE,na.rm=TRUE)
  
- \method{[[}{cell.data}(x,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE,...)
+ \method{[[}{cell.data}(x,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE,na.rm=TRUE,...)
 
- cdata(x,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE,...)
+ cdata(x,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE,na.rm=TRUE,...)
 
 }
 
@@ -28,7 +28,8 @@
   \item{exclude}{character vector defining variables names to be excluded from the returned data.frame}
   \item{QC.filter}{a boolean value indicating if the quality control filter should 
     be applied over the data}
-  \item{\dots}{further arguments passed to or used by methods}
+ 	\item{na.rm}{boolean indicating if registers with NA should be removed from the data.frame}
+ 	\item{\dots}{further arguments passed to or used by methods}
   \item{row.names}{further arguments passed to or used by methods}
   \item{optional}{further arguments passed to or used by methods}
 

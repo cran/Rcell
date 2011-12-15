@@ -9,7 +9,8 @@ cimage <- function(X,...) UseMethod("cimage")
 #public 
 #ToDo: allow for transformation funcions on images
 #ToDo: allow for anotation funcions, copy code from old package
-cimage.cell.data <- function(X,formula=NULL,facets=NULL,time.var=c("time","t.frame")
+cimage.cell.data <- function(X,formula=NULL,facets=NULL
+							,time.var=c("*time*","t.frame"),time.course=NULL
 							,select=NULL,exclude=NULL,normalize.group="channel",...){
 
 	#defining groups
@@ -22,16 +23,24 @@ cimage.cell.data <- function(X,formula=NULL,facets=NULL,time.var=c("time","t.fra
 		pfacets=.parse.formula(facets)
 		group=c(group,pfacets$lterm,pfacets$rterm)
 	}
-	group=setdiff(group,c(".","...","sample","channel",time.var))
 
-	#cell.image transformations requried variables
+	time.var=intersect(group,.select(X$variables,time.var,warn=FALSE))
+	if(isTRUE(time.var)) time.var<-NULL
+	group=setdiff(group,c(".","...","sample","cell","cells","cellID","ucid","channel",time.var))
+
+	#cell.image transformations required variables
 	var_names=c()
 	if(!is.null(select)|!is.null(exclude))
 		var_names=union(var_names,.select(X$variables,select,exclude))
+	var_names<-union(var_names,time.var)	
 	var_names<-union(var_names,cnormalize(NULL,normalize.group))	
 	if(length(var_names)==0) var_names=NULL
 
-	ci<-get.cell.image.cell.data(X,group=group,select=var_names,exclude=NULL,...)
+	if(is.null(time.course)) time.course=isTRUE(length(time.var)>0)
+
+	ci<-get.cell.image.cell.data(X,group=group,select=var_names,exclude=NULL
+								  ,time.course=time.course
+								  ,...)
 
 	#cell.image transformations
 	ci<-cnormalize(ci,normalize.group)
@@ -40,9 +49,33 @@ cimage.cell.data <- function(X,formula=NULL,facets=NULL,time.var=c("time","t.fra
 }
 
 
+#*************************************************************************#
+#public 
 print.cell.image<-function(x,nx=ceiling(sqrt(length(x))),...){
 	EBImage::display(EBImage::tile(EBImage::normalize(EBImage::combine(X)),nx=ceiling(sqrt(length(X))))
 	,title=paste("cell.image from",toString(unique(attr(x,"img.desc")$path))))
+}
+
+#*************************************************************************#
+#public 
+plot.Image<-function(x,width=NULL,height=NULL,omi=1,interpolate=FALSE,vp=NULL,...){
+	
+	if(is.null(width)|is.null(height)){
+		ds<-dev.size()
+		width=ds[1]
+		height=ds[2]
+	}
+
+	img.w=dim(x)[1]
+	img.h=dim(x)[2]
+	w.npc=omi;h.npc=omi
+	if(img.w/img.h>width/height){	
+		h.npc=w.npc*img.h/img.w*width/height
+	}else{
+		w.npc=h.npc*img.w/img.h*height/width
+	}
+
+	grid::grid.raster(x,x=0.5,y=0.5,width=w.npc,height=h.npc,interpolate = interpolate, vp=vp, ...)	
 }
 
 #*************************************************************************#
@@ -51,7 +84,7 @@ print.cell.image<-function(x,nx=ceiling(sqrt(length(x))),...){
 #ToDo: allow to multi layer image specification with formula=...~channel|t.frame
 cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 							   ,nx=NULL,ny=NULL,facets.nx=NULL,facets.ny=NULL
-							   ,bg.col="gray",border=1,facets.border=1
+							   ,bg.col="white",border=1,facets.border=1,rev.y=TRUE
 							   ,font.size=14,font.col="black",display=interactive(),...){
 
 	imgdf<-img.desc(X)
@@ -65,7 +98,7 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 			
 		} else { #if facets but no formula, just tile images 
 			pformula=list(lterm=".",rterm="img.index",type="wrap_horizontal") 
-			scales="free"
+			if(scales!="none") scales="free"
 		}
 	} else { #formula
 		if(!is.formula(formula)) stop("formula required")
@@ -77,24 +110,25 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 	if(is.null(facets)){ #no facet
 		imgdf<-transform(imgdf,facet_id=factor(1),facet_x=1,facet_y=1)
 		pfacets<-list(lterm=".",rterm=".",type="none") 
-		scales="fixed"
+		if(scales!="none") scales="fixed"
 	} else { #faceting
 		if(!is.formula(facets)) stop("facets should be a formula")
 		.check_formula(facets,names(imgdf))
 		pfacets=.parse.formula(facets)
-		if(pfacets$type=="none") scales="free"
-		imgdf<-.append.panel.idxy(imgdf,pfacets,var.prefix="facet_",nx=facets.nx,ny=facets.ny)
+		if(pfacets$type=="none"&scales!="none") scales="free"
+		imgdf<-.append.panel.idxy(imgdf,pfacets,var.prefix="facet_",nx=facets.nx,ny=facets.ny,rev.y=rev.y)
 	}
 	
 	group.var=setdiff(c(pformula$lterm,pformula$rterm,pfacets$lterm,pfacets$rterm),".")
 	if(anyDuplicated(group.var)) warning("some variable is duplicated between formula and facets")
-	if(max(ddply(imgdf,group.var,function(df) data.frame(n=dim(df)[1]))$n)>1)
+	if(max(ddply(imgdf,group.var,function(df) data.frame(n=dim(df)[1]))$n)>1){
 		warning("formula and facets don't uniquely specify a cell image, some selected images are not shown")
+	}
 
-	if(scales=="fixed"){
-		imgdf<-.append.panel.idxy(imgdf,pformula,var.prefix="img_",nx=nx,ny=ny)
+	if(scales=="fixed"|scales=="none"){
+		imgdf<-.append.panel.idxy(imgdf,pformula,var.prefix="img_",nx=nx,ny=ny,rev.y=rev.y)
 	} else if (scales=="free"){
-		imgdf<-do.call("rbind",dlply(imgdf,.(facet_id),.append.panel.idxy,pform=pformula,var.prefix="img_",nx=nx,ny=ny))
+		imgdf<-do.call("rbind",dlply(imgdf,.(facet_id),.append.panel.idxy,pform=pformula,var.prefix="img_",nx=nx,ny=ny,rev.y=rev.y))
 	} else stop("unknown value for scales argument")
 	
 	#ToDo: check for image homogeneity
@@ -118,8 +152,10 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 
 	#agregar axis aca si scale free
 	if (scales=="free"){
-		xaxis<-dlply(imgdf,.(facet_id),.axis,pform=pformula,side=1,img.size=img.size,border=border,font.size=font.size,font.col=font.col,bg.col=bg.col,line.col=0)
-		yaxis<-dlply(imgdf,.(facet_id),.axis,pform=pformula,side=2,img.size=img.size,border=border,font.size=font.size,font.col=font.col,bg.col=bg.col,line.col=0)
+		xaxis<-dlply(imgdf,.(facet_id),.axis,pform=pformula,side=1,img.size=img.size,border=border
+											,font.size=font.size,font.col=font.col,bg.col=bg.col,line.col=0)
+		yaxis<-dlply(imgdf,.(facet_id),.axis,pform=pformula,side=2,img.size=img.size,border=border
+											,font.size=font.size,font.col=font.col,bg.col=bg.col,line.col=0)
 		for(i in names(facets.img)){
 			xdim=dim(facets.img[[i]])[1]+dim(yaxis[[i]])[1]
 			ydim=dim(facets.img[[i]])[2]+dim(xaxis[[i]])[2]
@@ -170,7 +206,7 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 
 	#agregar facets axis si facet grid
 	h.xfacetsaxis=0
-	if(pfacets$type %in% c("grid")){
+	if(pfacets$type %in% c("grid") & scales!="none"){
 
 		facets.df<-transform(facets.df,img_x=facet_x,img_y=facet_y)
 		xfacetsaxis<-.axis(facets.df,pform=pfacets,side=3,img.size=fct.x,border=facets.border,font.size=font.size,font.col=font.col,bg.col=bg.col,line.col=0)
@@ -197,13 +233,13 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 		tmp[(dim(yaxis)[1]+1):xdim,1:(dim(outimg)[2])]<-outimg
 		for(i in 1:max.y)
 			tmp[1:(dim(yaxis)[1]),(i*(fct.y+facets.border)-dim(yaxis)[2]+1+h.xfacetsaxis):(i*(fct.y+facets.border)+h.xfacetsaxis)]<-yaxis 
-		#browser()
 		for(i in 1:max.x)
 			tmp[(dim(yaxis)[1]+1+(i-1)*(fct.x)+i*facets.border):(dim(yaxis)[1]+(i-1)*(fct.x)+i*facets.border+dim(xaxis)[1]),(dim(outimg)[2]+1):ydim]<-xaxis
 
 		outimg<-tmp
 	}
 
+	attr(outimg,"img.desc")<-imgdf
 	if(display) EBImage::display(outimg,title="cimage")
 	return(invisible(outimg))
 }
@@ -223,7 +259,7 @@ get.cell.image <- function(X,...) UseMethod("get.cell.image")
 #*************************************************************************#
 #public 
 #returns a list of croped cells images, given a cell.data object 
-get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=NULL
+get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=NULL,time.course=TRUE
 								,group=NULL,N=7,select=NULL,exclude=NULL,QC.filter=TRUE
 								,box.size=20,...){
 
@@ -236,8 +272,14 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 		data=subset(X$data,QC)
 	} else data=X$data
 
+	#checking that group variables exists 
+	if(!all(group%in%X$variables$all)){
+		stop(paste(group[!group%in%X$variables$all],collapse=", ")," not found in cell.data") 
+	}
+
 	#selecting variables to include in dataset
 	var_names=union(all.vars(channel.subset),group)
+	var_names=union(var_names,all.vars(subset))
 	var_names=union(var_names,c(.CELLID_ID_VARS,"ucid","xpos","ypos"))
 	if(!is.null(select)|!is.null(exclude))
 		var_names=union(var_names,.select(X$variables,select,exclude))
@@ -245,7 +287,7 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 
 	#subsetting the dataset
 	if(!is.null(subset))
-		data=subset(data,eval(subset,data,parent.frame(n=1)),select=var_names)
+		data=data[eval(subset,data,parent.frame(n=1)),intersect(var_names,names(data))]
 	else 
 		data=subset(data,select=var_names)
 
@@ -259,9 +301,15 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 		data<-.sample.N.ucid(data,N=NULL)
 	}
 
+	if(!time.course&max(table(data$ucid))>0){ #if several times per cell in a group, and NOT a time course
+		data<- #selecting random times
+		ddply(data,c(group,"ucid"),function(df) df[sample(1:dim(df)[1],1),])
+		message("Selecting random t.frames for each cell. Use time.course=TRUE if it's a time course.")
+	}
+
 	#"unfolding" dataset
-	X$image<-transform(X$image,image=factor(image))
-	data=merge(data,X$image,by=c("pos","t.frame"),suffixes = c("",""))
+	X$images<-transform(X$images,image=factor(image))
+	data=merge(data,X$images,by=c("pos","t.frame"),suffixes = c("",""))
 
 	#filtering by channel
 	if(!is.null(channel.subset))
@@ -295,6 +343,13 @@ get.cell.image.data.frame <- function(X,box.size=20,contained.box=FALSE,bg.col=0
 	#adding image index
 	img.desc<-transform(img.desc,img.index=seq(1,length(img.desc$image))
 					,path.image=paste(img.desc$path,img.desc$image,sep="/"))
+
+	#warning if it is going to take long
+	img.to.open<-length(unique(img.desc$path.image))
+	cell.to.crop<-length(unique(img.desc$img.index))
+	if(img.to.open>100|cell.to.crop>1000){
+		message(img.to.open," images will be opened and ",cell.to.crop," cells will be cropped. This can take some time.")
+	}
 
 	#open each image once, and crop all the required cells, then close image
 	cell.image<-list()
@@ -359,7 +414,7 @@ is.cell.image <- function(X) inherits(X,"cell.image")
 #*************************************************************************#
 #public 
 img.desc <- function(X){
-	if(!is.cell.image(X)) stop("cell.image object required")
+	if(!(is.cell.image(X)|is.Image(X))) stop("cell.image or Image object required")
 	attr(X,"img.desc")
 }
 
@@ -472,6 +527,38 @@ cnormalize<-function(X=NULL,normalize.group=c("channel"),...){
 	return(X)
 }
 
+#*************************************************************************#
+#cell.image transformation functions
+#cell.image cell.image apply, extension of plyr package for cell image
+#ToDo: allow for functionss that reuturn image stacks o same length as input
+#	   set MARGIN=NULL for functions like normalize and MARGIN=3 in a per image function
+#	   manage img.desc appropiately
+ciciply<-function(X=NULL,group=c("pos","cellID","channel"),FUN=sum,MARGIN=c(1,2),warn=TRUE){
+
+	if(is.null(X)) return(group)
+	
+	img.list<-dlply(img.desc(X),group,function(df)df$img.index)
+	Y<-list()
+	Y.index<-data.frame(img.index=1:length(names(img.list)),img.name=names(img.list))
+	for(i in names(img.list)){
+		img<-EBImage::combine(X[img.list[[i]]])
+		img<-EBImage::as.Image(apply(img, MARGIN, FUN))
+		Y[[Y.index[Y.index$img.name==i,"img.index"]]]<-img
+	}
+	Y.img.desc<-ddply(img.desc(X),group,colwise(.unique.na))
+	rm.vars<-names(Y.img.desc)[sapply(Y.img.desc,FUN=function(x)any(is.na(x)))]
+	if(warn) message("removing variables from img.desc: ",toString(rm.vars))
+	Y.img.desc<-subset(Y.img.desc,select=setdiff(names(Y.img.desc),rm.vars))
+	Y.img.desc$img.name<-interaction(Y.img.desc[,group],drop=TRUE, lex.order=FALSE)
+	Y.img.desc<-join(Y.img.desc,Y.index,by="img.name")
+	Y.img.desc$img.name<-NULL
+
+	class(Y)<-c("cell.image","list")	
+	attr(Y,"img.desc")<-Y.img.desc
+
+	return(Y)
+}
+
 add.nucleus.boundary<-function(X=NULL,radii=c(2,3,4,5,6,7),pos.nucl.channel="YFP",col=0.75,...){
 	
 	if(is.null(X)) return(c("xpos","ypos","xpos.nucl.?","xpos.nucl.?"))
@@ -537,21 +624,21 @@ drawCross<-function(img, x, y, size=2, col=0.75, z=1){
             stop("In Grayscale mode, 'col' must be a scalar value")
     }
 
-	nrow=dim(img)[1]
-	ncol=dim(img)[2]
-	boolv=vector(mode = "logical",nrow*ncol)
+	n_row=dim(img)[2]
+	n_col=dim(img)[1]
+	boolv=vector(mode = "logical",n_row*n_col)
 	
-	boolv[x+ncol*y]<-TRUE
+	boolv[x+n_col*y]<-TRUE
 	if(size>0){
 		for(i in 1:(size)){
-			boolv[(x+i)+ncol*(y+i)]<-TRUE
-			boolv[(x+i)+ncol*(y-i)]<-TRUE
-			boolv[(x-i)+ncol*(y+i)]<-TRUE
-			boolv[(x-i)+ncol*(y-i)]<-TRUE
+			boolv[(x+i)+n_col*(y+i)]<-TRUE
+			boolv[(x+i)+n_col*(y-i)]<-TRUE
+			boolv[(x-i)+n_col*(y+i)]<-TRUE
+			boolv[(x-i)+n_col*(y-i)]<-TRUE
 		}
 	}
 
-	boolm=matrix(boolv,nrow=nrow,ncol=ncol)
+	boolm=matrix(boolv,nrow=n_row,ncol=n_col)
 	img[boolm]<-col
 	invisible(img)
 }
@@ -649,7 +736,17 @@ drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1)
 			}
 
 			lab=as.character(axisdf[,term[n_term-i+1]])
-			if(term[n_term-i+1]=="sample") lab=rep(".",times=length(lab))
+			if(term[n_term-i+1]=="sample"){ #dealing with "sample" labels
+				pIDs<-ddply(subset(imgdf,select=c("pos","cellID","sample")),.(pos,cellID)
+					,function(df)data.frame(sample=ifelse(length(unique(df$sample))==1,unique(df$sample),NA)))
+				pIDs<-transform(pIDs,lab=as.character(interaction(pIDs$pos,pIDs$cellID))) 
+				dtsl<-dim(table(pIDs$sample,pIDs$lab))
+				if(any(is.na(pIDs[,3]))|(dtsl[2]>dtsl[1])){ #not unique mapping between sample number and pos.cellID
+					lab=rep(".",times=length(lab)) #using dots
+				}else { #unique mapping #using pos.cellID
+					lab=join(axisdf,pIDs,by="sample")$lab
+				}
+			}
 			lab=substr(lab,1,max.nchar)
 			
 			ylabelpos<-	switch(side
@@ -676,7 +773,7 @@ drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1)
 
 }
 
-.append.panel.idxy<-function(imgdf,pform,var.prefix="panel_",nx=NULL,ny=NULL){
+.append.panel.idxy<-function(imgdf,pform,var.prefix="panel_",nx=NULL,ny=NULL,rev.y=TRUE){
 	if(pform$type=="none"){
 		tmp<-summarise(imgdf,facet_id=factor(1),facet_x=1,facet_y=1)
 		names(tmp)<-paste(var.prefix,c("id","x","y"),sep="")
@@ -689,18 +786,21 @@ drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1)
 			.wrap(subset(imgdf,select=pform$lterm),nx=nx,ny=ny,vertical=TRUE,var.prefix=var.prefix))		
 	} else if (pform$type=="grid"){
 		imgdf<-cbind(imgdf,
-			.grid(imgdf,pform$lterm,pform$rterm,var.prefix=var.prefix))
+			.grid(imgdf,pform$lterm,pform$rterm,var.prefix=var.prefix,rev.y=rev.y))
 	} else stop("unknown formula type")
 	return(imgdf)
 }
 
-.grid <- function(df,lterm,rterm,var.prefix="panel_"){
+.grid <- function(df,lterm,rterm,var.prefix="panel_",rev.y=TRUE){
 
 	df$factor_id_x<-.ordered.interaction(subset(df,select=rterm))
 	df$factor_id_y<-.ordered.interaction(subset(df,select=lterm))
 	df$factor_id<-.ordered.interaction(subset(df,select=c(factor_id_x,factor_id_y)),sep="_._")
 	df$factor_x<-as.numeric(df$factor_id_x)
 	df$factor_y<-as.numeric(df$factor_id_y)
+
+	if(isTRUE(var.prefix=="img_")&isTRUE(rev.y))
+		df$factor_y<-max(df$factor_y)-df$factor_y+1 #inverting y axis for imgs
 
 	df<-subset(df,select=c(factor_id,factor_id_x,factor_id_y,factor_x,factor_y))
 
@@ -745,11 +845,14 @@ drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1)
 }
 
 .sample.N.ucid<-function(df,N){
+
 	group.ucid=unique(df$ucid)
 	len.group=length(group.ucid)
 	if(is.null(N)) N=len.group
 	if(len.group==0) stop("Empty group selected",call. = FALSE)
-	if(len.group<=N){ #less cells in group than required
+	if(len.group==1){ 
+		df<-transform(df,sample=1)
+	}else if(len.group<=N){ #less cells in group than required
 		df<-join(df,data.frame(ucid=sample(group.ucid,length(group.ucid)),sample=1:len.group),by="ucid")
 	} else { #more cells than required
 		group.ucid<-sample(group.ucid,N)
@@ -772,8 +875,8 @@ drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1)
 	if(length(lterm)>1&is.element(".",lterm)) stop("left term of formula has . and other variables")
 	if(length(rterm)>1&is.element(".",rterm)) stop("right term of formula has . and other variables")
 
-	lterm[lterm=="..."]<-"sample"
-	rterm[rterm=="..."]<-"sample"
+	lterm[lterm%in%c("...","cell","cells")]<-"sample"
+	rterm[rterm%in%c("...","cell","cells")]<-"sample"
 	
 	if("."%in%lterm&"."%in%rterm)type="none"
 	else if("."%in%lterm) 	 type="wrap_horizontal"
@@ -796,9 +899,15 @@ drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1)
 # @keyword internal
 .check_formula <- function(formula, varnames) {
 	vars <- all.vars(formula)
-	unknown <- setdiff(vars, c(".", "...",varnames))
+	unknown <- setdiff(vars, c(".", "...","cell","cells",varnames))
 	if (length(unknown) > 0) stop("formula contains variables not found in cell.image img.desc: "
 									, paste(unknown, collapse=", "), call. = FALSE)
 	vars <- vars[vars != "."]
 	if (length(unique(vars)) < length(vars)) stop("Variable names repeated", call. = FALSE)
+}
+
+.unique.na<-function(x){
+	ux<-unique(x)
+	if(length(ux)==1) return(ux)
+	else return(NA)
 }

@@ -11,7 +11,7 @@
 Miscellaneous functions to do stuff in less lines
 }
 \usage{
-paste_data_error(data,error,error.signif=1)
+paste_data_error(data,error,error.signif=1,plotmath=FALSE)
 paste_parameter(fit,param,error.signif=1)
 paste_intercept_slope(fit,error.signif=1)
 paste_EC50_n(fit,leading.str="",error.signif=2)
@@ -21,6 +21,7 @@ vplayout(x, y)
   \item{data}{a numeric vector of values }
   \item{error}{a numeric vector of errors for \code{data} values}
   \item{error.signif}{number of significant digits for the error}	
+  \item{plotmath}{if TRUE the +- character for plotmath is used instead of the default}	
   \item{fit}{an object of class 'lm' or 'nlm'}	
   \item{param}{character name of the parameter from \code{fit} to paste}	
   \item{leading.str}{string to paste before the data and error}	

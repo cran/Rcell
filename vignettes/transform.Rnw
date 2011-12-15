@@ -13,7 +13,7 @@
 
 \begin{document}
 
-\SweaveOpts{eps = FALSE, pdf = TRUE}
+\SweaveOpts{pdf = TRUE}
 \SweaveOpts{prefix.string=fig/transform}
 <<include=FALSE,echo=FALSE>>=
   if(!file.exists("fig")) dir.create("fig")  

@@ -25,7 +25,7 @@ options(keep.source = TRUE, width = 100)
 foo <- packageDescription("Rcell")
 @
 
-\title{Display cell images with Rcell (Version \Sexpr{foo$Version})}
+\title{Layout cell images with Rcell (Version \Sexpr{foo$Version})}
 \author{Alan Bush}
 \maketitle
 
@@ -57,20 +57,24 @@ data(ACL394filtered)
 
 <<include=FALSE,echo=FALSE,eval=TRUE>>=
 library(Rcell)
+is.EBImage<-require(EBImage,quietly=TRUE)
 data(ACL394data)
 X$images$path<-factor(system.file('img', package='Rcell'))
 @
 
-When analyzing a dataset, you usually want to take a look at the cells images that are generating the data points. This helps interpret the data and gives you confidence on the result. To visualize a random set of cells from a image, you have to specify position, channel and t.frame (if you are dealing with a time course). For example, to visualize some BF images of cells from position 29 and t.frame 11 use the following commands\footnote{To save space, only some images of the example datatset were included in the package. Changing the \textit{subset} or the \textit{channel} arguments might result in errors if the specified images are not found.}. 
+When analyzing a dataset, you usually want to take a look at the cell's images that correspond to the data points. This helps to interpret the data and gives you confidence on the result. To visualize a random set of cells from a image, you have to specify position, channel and time frame (if you are dealing with a time course). For example, to visualize some BF images of cells from position 29 and time frame 11 use the following command\footnote{To save space, only some images of the example datatset were included in the package. Changing the \textit{subset} or the \textit{channel} arguments might result in errors if the specified images are not found.}. 
 
-<<img1,include=TRUE>>=
-img1<-cimage(X,subset=pos==29&t.frame==11,channel="BF",bg.col="white")
+<<img1,include=TRUE,eval=FALSE>>=
+cimage(X,subset=pos==29&t.frame==11,channel="BF")
 @
 
-This function displays the image shown in Figure~\ref{fig:img1}, and returns a Image object (saved to \verb@img1@). 
+This function displays the image shown in Figure~\ref{fig:img1}, and returns a \verb@Image@ object that can be saved to disk using the \verb@writeImage@ function. 
 
-<<include=FALSE,echo=FALSE>>= 
-writeImage(img1, 'fig/cimage-img1.jpg', quality=80)
+<<include=FALSE,echo=FALSE,eval=TRUE>>=
+if(is.EBImage) 
+  writeImage(
+<<img1>>  
+  , 'fig/cimage-img1.jpg', quality=80)
 @
 
 \begin{figure}
@@ -81,15 +85,18 @@ writeImage(img1, 'fig/cimage-img1.jpg', quality=80)
 \end{center}
 \end{figure}
 
-As all \textbf{Rcell} functions, the first argument of \verb@cimage@ is the cell.data object that you wish to visualize. This function first subsets the cell.data object X according to the \emph{subset} argument, as many other \textbf{Rcell} functions. This is useful to select cells and times, but you can't use this argument to select the channel you want to see. Instead you can use the \emph{channel} argument for this. Note that you can select several channels (see below). \verb@cimage@ then takes a random sample of cells from those which passed the \emph{subset} argument. The default sample size is seven, but you can specify it with the \emph{N} argument. If you set \emph{N} to NA, no sampling is applied and all selected cells are shown.
-The position each cell took in the image was arbitrary in Figure~\ref{fig:img1}, they were just tiled together to make a square arrangement. But position can have a meaning. A normal way to display cell images is to show a time course strips, where different channels are stacked one over the other. \verb@cimage@ can easily produce this sort of images (Figure~\ref{fig:img2}).
+As all \textbf{Rcell} functions, the first argument of \verb@cimage@ is the \verb@cell.data@ object that you wish to visualize. This function first subsets the \verb@cell.data@ object X according to the \emph{subset} argument, as many other \textbf{Rcell} functions. This is useful to select cells and times, but you can't use this argument to select the channel you want to see. Instead you can use the \emph{channel} argument for this. Note that you can select several channels (see below). \verb@cimage@ then takes a random sample of cells from those selected by the \emph{subset} argument. The default sample size is seven, but you can specify it with the \emph{N} argument. If you set \emph{N} to NA, no sampling is applied and all selected cells are shown.
+The position each cell took in the image was arbitrary in Figure~\ref{fig:img1}, they were just tiled together to make a square arrangement. But position can have a meaning. A normal way to display cell images is to show a time course strips, where different channels are stacked one over the other. \verb@cimage@ can easily produce this kind of images (Figure~\ref{fig:img2}).
 
-<<img2,include=TRUE>>=
-img2<-cimage(X,channel~t.frame,subset=pos==29&cellID==5,channel=c("BF","YFP"),bg.col="white")
+<<img2,include=TRUE,eval=FALSE>>=
+cimage(X,channel~t.frame,subset=pos==29&cellID==5,channel=c("BF","YFP"))
 @
 
-<<include=FALSE,echo=FALSE>>= 
-writeImage(img2, 'fig/cimage-img2.jpg', quality=80)
+<<include=FALSE,echo=FALSE,eval=TRUE>>=
+if(is.EBImage) 
+  writeImage(
+<<img2>>  
+  , 'fig/cimage-img2.jpg', quality=80)
 @
 
 \begin{figure}
@@ -100,34 +107,41 @@ writeImage(img2, 'fig/cimage-img2.jpg', quality=80)
 \end{center}
 \end{figure}
 
-The second argument \verb@cimage@ is the \emph{formula} that specifies the position of individual images. The first term indicates the \verb@y@ variable, \emph{channel} in this example, so different channels will have different \verb@y@ coordinates. The right term specifies which variable is going to be used as the \verb@x@ coordinate, \emph{t.frame} in this case. In this example a single cell was explicitly selected with the \emph{subset} argument. When you select more than one cell per group, you have to specify how you want them to be layout on the image. To specify different cells within a sample you can use three dots (\dots), as shown in Figure~\ref{fig:img3}.  
+The second argument \verb@cimage@ is the \emph{formula} that specifies the position of individual images. The first term indicates the \verb@y@ variable, \emph{channel} in this example, so different channels will have different \verb@y@ coordinates. The right term specifies which variable is going to be used as the \verb@x@ coordinate, \emph{t.frame} in this case. In this example a single cell was explicitly selected with the \emph{subset} argument. When you select more than one cell per group\footnote{the groups are defined by the interaction (combinations) of the terms of the formula}, you have to specify how you want them to be layout on the image. To specify different cells within a sample you can use the \emph{cell}\footnote{note that \emph{cell} is different from \emph{cellID}. You can also use the alternative keywords \emph{sample} or thre dots(\dots)} keyword, as shown in Figure~\ref{fig:img3}.   
  
-<<img3,include=TRUE>>=
-img3<-cimage(X,...+channel~t.frame,subset=pos==29,channel=c("BF","YFP"),N=4,bg.col="white")
+<<img3,include=TRUE,eval=FALSE>>=
+cimage(X,cell+channel~t.frame,subset=pos==29,channel=c("BF","YFP"),N=4)
 @
 
-<<include=FALSE,echo=FALSE>>= 
-writeImage(img3, 'fig/cimage-img3.jpg', quality=80)
+<<include=FALSE,echo=FALSE,eval=TRUE>>= 
+if(is.EBImage)
+  writeImage(
+<<img3>>  
+  , 'fig/cimage-img3.jpg', quality=80)
 @
 
 \begin{figure}
 \begin{center}
 \includegraphics[width=0.9\textwidth]{fig/cimage-img3.jpg}
-\caption{Time course strips for 4 randomly chosen cells}
+\caption{Time course strips for 4 randomly chosen cells. The position and cellID of each cell are shown in the \emph{pos}.\emph{cellID} format.}
 \label{fig:img3}
 \end{center}
 \end{figure}
 
-Note that you can use more than one variable in each term of the formula, separated by the plus operator (\verb@+@). The order matters, the last variable to the right varies faster. In this example (Figure~\ref{fig:img3}) channel is anidated in each cell (you can think of the dots as different cells).
+Note that you can use more than one variable in each term of the formula, separated by the plus operator (\verb@+@). The order matters, the last variable to the right varies faster. In this example (Figure~\ref{fig:img3}) channel is anidated in each cell.
 
 The \emph{channel.subset} argument allows you to do complex selection of \emph{channel}s and \emph{t.frame}. For example you might be interested in the YFP channel, but would like to see the cell boundary found by Cell-ID on a BF image for a single time frame (Figure~\ref{fig:img4}).
 
-<<img4,include=TRUE>>=
-img4<-cimage(X,...~channel+t.frame,subset=pos==29,channel.subset=channel=="YFP"|(channel=="BF.out"&t.frame==11),N=4,bg.col="white")
+<<img4,include=TRUE,eval=FALSE>>=
+cimage(X,cell~channel+t.frame,subset=pos==29,N=4
+    ,channel.subset=channel=="YFP"|(channel=="BF.out"&t.frame==11))
 @
  
-<<include=FALSE,echo=FALSE>>= 
-writeImage(img4, 'fig/cimage-img4.jpg', quality=80)
+<<include=FALSE,echo=FALSE,eval=TRUE>>= 
+if(is.EBImage)
+  writeImage(
+<<img4>>  
+  , 'fig/cimage-img4.jpg', quality=80)
 @
 
 
@@ -141,18 +155,21 @@ writeImage(img4, 'fig/cimage-img4.jpg', quality=80)
 
 You can select the ``out'' images generated by Cell-ID by appending ``.out'' to the channel name.
 
-\section{Faceting your image plot}
+\section{Faceting your image layout}
 
-In the same way as for \verb@cplot@, you can define \emph{facets} for the image plot. The facets are specified with formula notation, just as the positions of the images within a facet. If only one term of the formula is specified, the facets will be wrapped around the image to save space\footnote{In this case the \emph{facets.nx} argument can be used to indicate the number of facets columns} (Figure~\ref{fig:img5}). 
+In the same way as for \verb@cplot@, you can define \emph{facets} for the image layout. The facets are specified with formula notation, just as the positions of the images within a facet. If only one term of the formula is specified, the facets will be wrapped around the image to save space\footnote{In this case the \emph{facets.nx} argument can be used to define the number of facets columns} (Figure~\ref{fig:img5}). 
 
-<<img5,include=TRUE>>=
-img5<-cimage(X,...~channel,facets=~pos,subset=t.frame==11&pos%in%c(1,8,15,22,29),channel=c("YFP","BF"),bg.col="white",N=3,facets.nx=5)
+<<img5,include=TRUE,eval=FALSE>>=
+cimage(X,cell~channel,facets=~pos,subset=t.frame==11&pos%in%c(1,8,15,22,29)
+              ,channel=c("YFP","BF"),N=3,facets.nx=5)
 @
 
-<<include=FALSE,echo=FALSE>>= 
-writeImage(img5, 'fig/cimage-img5.jpg', quality=80)
+<<include=FALSE,echo=FALSE,eval=TRUE>>= 
+if(is.EBImage)
+  writeImage(
+<<img5>>  
+  , 'fig/cimage-img5.jpg', quality=80)
 @
-
  
 \begin{figure}
 \begin{center}
@@ -162,7 +179,7 @@ writeImage(img5, 'fig/cimage-img5.jpg', quality=80)
 \end{center}
 \end{figure}
 
-\section{Plotting images against continuous variables}
+\section{Image layout for continuous variables}
 
 An interesting plot can be obtained if we choose the position of the image according to a continuous variable. First suitable bins of the continuous variables have to be created, we can use the \verb@cut@ function for this.
 
@@ -173,12 +190,16 @@ X<-transform(X,cut.f.tot.y=cut(f.tot.y,20))
 
 Once these variables are created we can use them to arrange the images of the cells (Figure~\ref{fig:img6}).
  
-<<img6,include=TRUE>>=
-img6<-cimage(X,cut.f.tot.y~cut.fft.stat,facets=~channel,subset=t.frame==11 & pos %in% c(1,8,15,22,29),channel=c("YFP","BF.out"),bg.col="white",N=1)
+<<img6,include=TRUE,eval=FALSE>>=
+cimage(X,cut.f.tot.y~cut.fft.stat,facets=~channel,subset=t.frame==11 & pos %in% c(1,8,15,22,29)
+              ,channel=c("YFP","BF.out"),N=1)
 @
 
-<<include=FALSE,echo=FALSE>>= 
-writeImage(img6, 'fig/cimage-img6.jpg', quality=80)
+<<include=FALSE,echo=FALSE,eval=TRUE>>=
+if(is.EBImage) 
+  writeImage(
+<<img6>>  
+  , 'fig/cimage-img6.jpg', quality=80)
 @
 
 \begin{figure}
@@ -189,6 +210,25 @@ writeImage(img6, 'fig/cimage-img6.jpg', quality=80)
 \end{center}
 \end{figure}
   
+You can compare the image layout with a scatter plot side by side. This can hep you interpret the scatter plot (Figure~\ref{fig:f07}). 
+
+<<fig07,include=TRUE>>=
+cplot(X,f.tot.y~fft.stat,subset=t.frame==11 & pos %in% c(1,8,15,22,29)) 
+@  
+
+\setkeys{Gin}{width=0.5\textwidth}
+\SweaveOpts{png = FALSE, pdf = TRUE}
+\begin{figure}
+\begin{center}
+<<fig=TRUE,echo=FALSE,width=4.5,height=4.5>>=
+<<fig07>>
+@
+\caption{Scatter plot to be compared to the image layouts of Figure~\ref{fig:img6}}
+\label{fig:f07}
+\end{center}
+\end{figure}
+
+
 
 \begin{thebibliography}{}
 

@@ -46,14 +46,16 @@ show.image(X,pos,t.frame=0,channel="BF.out",image.title=""
 \seealso{EBImage}
 \examples{
 
-#load example dataset
-data(ACL394filtered)
+if(interactive()&require(EBImage,quietly=TRUE)){
+  #load example dataset
+  data(ACL394filtered)
   
-#display the BF out image from position 8 and t.frame 11
-if(interactive()) show.img(X,pos=8,t.frame=11)
+  #display the BF out image from position 8 and t.frame 11
+  show.img(X,pos=8,t.frame=11)
 
-#display a stack of the YFP images of position 29
-if(interactive()) show.img(X,pos=29,t.frame=7:11,channel="YFP")
+  #display a stack of the YFP images of position 29
+  show.img(X,pos=29,t.frame=7:11,channel="YFP")
+}
 
 }
 \keyword{manip}

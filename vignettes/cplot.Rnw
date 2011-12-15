@@ -1,4 +1,3 @@
-
 \documentclass{article}
 
 \usepackage{url}
@@ -8,12 +7,13 @@
 \usepackage{indentfirst}
 \usepackage[utf8]{inputenc}
 \usepackage{fullpage}
-
 % \VignetteIndexEntry{Plotting-with-Rcell}
 
 \begin{document}
 
-\SweaveOpts{eps = FALSE, pdf = TRUE}
+\SweaveOpts{png = FALSE, pdf = TRUE, resolution = 72}
+\DeclareGraphicsExtensions{.pdf, .png}
+
 \SweaveOpts{prefix.string=fig/cplot}
 <<include=FALSE,echo=FALSE>>=
   if(!file.exists("fig")) dir.create("fig")  
@@ -78,11 +78,12 @@ cplot(X,x=f.tot.y,y=f.tot.c,subset=t.frame==13)
 The first argument of the \verb@cplot@ function is the \verb@cell.data@ object, i.e. the \emph{data} element of the plot. The second and third argument specify the \emph{aesthetic mapping}; \emph{f.tot.y} variable of the dataset should be mapped to the \emph{x} position aesthetic, and \emph{f.tot.c} to the \emph{y} position aesthetic (the \verb@subset@ argument just indicates we don't want to plot the entire dataset, just some registers). As you can see not all elements of the grammar where specified. The ones that are not are set to default values. For example \emph{geom} is set to \verb@"point"@, meaning that a point is going to be used to represent the data. The aesthetic attributes available depend on the selected \emph{geom}. For example a point \emph{geom} has \emph{x}, \emph{y}, \emph{size}, \emph{shape}, \emph{color}, \emph{fill} and \emph{alpha} (transparency). To see all aesthetic attributes and default values of the available \emph{geom} go to \url{http://had.co.nz/ggplot2}. There are many attributes that can be mapped to variables, therefore increasing the amount of information a plot contains. You can specify the \emph{aesthetic mapping} of these attributes as we did before.
 
 <<fig01b,include=TRUE>>=
-cplot(X,x=f.tot.y,y=f.tot.c,size=a.tot,color=AF.nM,shape=AF.nM,alpha=0.5,subset=t.frame==13)
+cplot(X,x=f.tot.y,y=f.tot.c,size=a.tot,color=factor(AF.nM),shape=factor(AF.nM),alpha=0.5,subset=t.frame==13)
 @
      
-We have mapped the \emph{size} aesthetic to the \textit{a.tot} variable, and the \emph{color} and \emph{shape} aesthetics to the \textit{AF.nM} variable (Figure~\ref{fig:f01} right). This mapping redundancy can be useful to present the data to color blind persons or if the plot is going to be presented in a black and white device (e.g. paper). Note that the \emph{alpha} (transparency) aesthetic has been mapped to a constat value and not a variable. Making objects semi-transparents can reduce over-plotting.
+We have mapped the \emph{size} aesthetic to the \textit{a.tot} variable, and the \emph{color} and \emph{shape} aesthetics to the \textit{AF.nM} variable (Figure~\ref{fig:f01} right). This mapping redundancy can be useful to present the data to color blind persons or if the plot is going to be presented in a black and white device (e.g. paper). The use of the \verb@factor@ function for \textit{AF.nM} forces the use of discrete scales. Note that the \emph{alpha} (transparency) aesthetic has been mapped to a constat value and not a variable. Making objects semi-transparents can reduce over-plotting.
 
+\SweaveOpts{png = FALSE, pdf = TRUE}
 \begin{figure}
 \begin{center}
 <<fig=TRUE,echo=FALSE,width=9,height=4.5>>=
@@ -122,6 +123,7 @@ You can see that the \textit{t.frame} variable takes discrete levels, thus causi
 cplot(X,f.tot.y~t.frame,size=1,alpha=0.3,position="jitter",subset=AF.nM==20)
 @
 
+\SweaveOpts{png = TRUE, pdf = FALSE}
 \begin{figure}
 \begin{center}
 <<fig=TRUE,echo=FALSE,width=9,height=4.5>>=
@@ -163,6 +165,7 @@ cplotmean(X,f.tot.y~t.frame,subset=AF.nM==20)
 
 Note that the plotting range used for this plot is the data range. You probably want to zoom-in the \emph{y} axis to show only the range of the means. To do this you can use the \verb@yzoom@ argument, for example \verb@yzoom=c(0,6e6)@. The \verb@ylim@ argument is also available, but it filters the data BEFORE the statistical transformation, thus the calculated mean will depended on the plotting range! A warning is issued if you use \verb@ylim@ in a call to \verb@cplotmean@.
 
+\SweaveOpts{png = FALSE, pdf = TRUE}
 \begin{figure}
 \begin{center}
 <<fig=TRUE,echo=FALSE,width=9,height=4.5>>=
@@ -200,6 +203,7 @@ When used with no \verb@cell.data@ or mapping arguments, the added layer uses th
 p + clayermean(geom="smooth")
 @
 
+\SweaveOpts{png = TRUE, pdf = FALSE}
 \begin{figure}
 \begin{center}
 <<fig=TRUE,echo=FALSE,width=9,height=4.5>>=
@@ -222,36 +226,22 @@ Only layers can be added to plots, you can't add plots to plots nor layers to la
  
 \section{Faceting Plots}     
 
-Faceting creates many subplots showing different subsets of the data. You can facet a plot by providing a \emph{facets} argument. This argument should be a formula. If only the right term is provided (\verb@~myVar@) then a one dimensional strip of subplots is created and then ``wrapped'' into 2D to save space. If you provide both terms to the \emph{facets} formula, a grid of subplots is created. An example of each is shown in Figure~\ref{fig:f5a} and~\ref{fig:f5b} respectively.
+Faceting creates many subplots showing different subsets of the data. You can facet a plot by providing a \emph{facets} argument. This argument should be a formula. If only the right term is provided (\verb@~myVar@) then a one dimensional strip of subplots is created and then ``wrapped'' into 2D to save space. An example is shown in Figure~\ref{fig:f5a}. If you provide both terms to the \emph{facets} formula, a grid of subplots is created.
 
 <<fig05a,include=TRUE>>=
-cplot(X,f.tot.c~f.tot.y,facets=~t.frame,size=0.5,alpha=0.5)
+cplot(X,f.tot.y~t.frame,facets=~pos,geom="smooth",subset=pos%in%c(1,8,15,22,29),yzoom=c(0,6e6))
 @
+
+\SweaveOpts{png = FALSE, pdf = TRUE}
 \begin{figure}
 \begin{center}
-<<fig=TRUE,echo=FALSE,width=9,height=9>>=
+<<fig=TRUE,echo=FALSE,width=9,height=6>>=
 print(
 <<fig05a>>
 )
 @
-\caption{CFP vs YFP scatter plot, facetted by time frame.}
+\caption{YFP vs time, facetted by pos (one position of each dose was selected).}
 \label{fig:f5a}
-\end{center}
-\end{figure}
-
-<<fig05b,include=TRUE>>=
-cplot(X,f.tot.c~f.tot.y,facets=AF.nM~t.frame,subset=t.frame%in%c(1,4,7,10,13),size=0.5,alpha=0.5)
-@
-
-\begin{figure}
-\begin{center}
-<<fig=TRUE,echo=FALSE,width=9,height=9>>=
-print(
-<<fig05b>>
-)
-@
-\caption{CFP vs YFP scatter plot, facetted by time frame and pheromone dose.}
-\label{fig:f5b}
 \end{center}
 \end{figure}
  
@@ -269,6 +259,7 @@ As with other plots, you can map other aesthetics to variables. In \emph{geom} \
 cplot(X,~f.tot.y,subset=t.frame==13,fill=factor(AF.nM))
 @  
 
+\SweaveOpts{png = FALSE, pdf = TRUE}
 \begin{figure}
 \begin{center}
 <<fig=TRUE,echo=FALSE,width=9,height=4.5>>=
@@ -290,6 +281,7 @@ print(
 Note that we transformed the numerical variable AF.nM to a factor. This was done because the color scale applied to factors makes it easier to differentiate between levels of the variable. You can see that the title of the legend contains is \verb@"factor(AF.nM)"@. To avoid the inclusion of ``factor'' in this legend you can use the \emph{as.factor} argument (see next example). 
 When specifying the filling color, the \emph{position} adjustment is set to \verb@"stack"@, which means that bars of different colors are stacked one over the other (the outline of the histogram doesn't change). This behavior can be changed by using other \emph{position} adjustments, for example \verb@"dodge"@ and \verb@"fill"@ are shown in Figure~\ref{fig:f07}, left and right respectively.
   
+\SweaveOpts{png = FALSE, pdf = TRUE}
 \begin{figure}
 \begin{center}
 <<fig=TRUE,echo=FALSE,width=9,height=4.5>>=
@@ -319,6 +311,7 @@ A smoothed version of this plot is obtained with a density plot, as shown in Fig
 cplot(X,x=f.tot.y,subset=t.frame==7,geom="density",color=factor(AF.nM),yzoom=c(0,1e-6)) 
 @  
 
+\SweaveOpts{png = FALSE, pdf = TRUE}
 \begin{figure}
 \begin{center}
 <<fig=TRUE,echo=FALSE,width=9,height=4.5>>=

@@ -20,7 +20,7 @@
 get.cell.image(X,...)
 
 \method{get.cell.image}{cell.data}(X,subset=NULL,channel.subset=NULL,channel=NULL
-  ,group=NULL,N=7,select=NULL,exclude=NULL,QC.filter=TRUE,box.size=20,...)
+  ,time.course=TRUE,group=NULL,N=7,select=NULL,exclude=NULL,QC.filter=TRUE,box.size=20,...)
 
 \method{get.cell.image}{data.frame}(X,box.size=20,contained.box=FALSE,bg.col=0,...)
 
@@ -43,6 +43,7 @@ is.cell.image(X)
   \item{subset}{logical expression indicating elements or rows to keep. Don't specify channel here.}
   \item{channel.subset}{logical expression to specify which image to retrieve with channel and t.frame variables.}
   \item{channel}{character vector of channels to retrieve. }
+  \item{time.course}{boolean indicating if the desired image montage is a time course (i.e. several images for the same cell)}
   \item{group}{character vector or quoted names of variables who's interaction define the groups from which select \code{N} random cells.}
   \item{N}{Number of random cells to select from each group. If NULL all cells are selected}
   \item{select}{character vector defining variables names to be included in the returned cell.image object}
@@ -78,21 +79,23 @@ is.cell.image(X)
 \seealso{EBImage}
 \examples{
 
-#load example dataset
-data(ACL394filtered)
+if(interactive()&require(EBImage,quietly=TRUE)){
+  #load example dataset
+  data(ACL394filtered)
   
-#select N=3 cells images from each pos (group), 
-#from the first t.frame and pos 1,8,15,22,29.
-ci<-get.cell.image(X,subset=match(pos,c(1,8,15,22,29),nomatch=0)>0&t.frame==11,
-	group=.(pos),N=3,channel=c('BF.out','YFP'))
-if(interactive()) ci #print the cells images
-summary(ci) #get a summary of the content
-img.desc(ci) #get the image description data.frame
+  #select N=3 cells images from each pos (group), 
+  #from the first t.frame and pos 1,8,15,22,29.
+  ci<-get.cell.image(X,subset=match(pos,c(1,8,15,22,29),nomatch=0)>0&t.frame==11,
+    group=.(pos),N=3,channel=c('BF.out','YFP'))
+  print(ci) #print the cells images
+  summary(ci) #get a summary of the content
+  img.desc(ci) #get the image description data.frame
 
-#select the first 4 t.frames for YFP, and the first t.frame for BF
-ci<-get.cell.image(X,subset=pos==29,group='pos',
-	channel.subset=channel=='YFP'|(t.frame==11&channel=='BF'))
-if(interactive()) print(ci)
+  #select the first 4 t.frames for YFP, and the first t.frame for BF
+  ci<-get.cell.image(X,subset=pos==29,group='pos',
+    channel.subset=channel=='YFP'|(t.frame==11&channel=='BF'))
+  print(ci)
+}
 
 }
 \keyword{manip}

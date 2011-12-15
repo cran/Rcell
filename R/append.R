@@ -155,7 +155,10 @@ append.oif.time<-function(X,OIF.date="OIF-date.txt",path=getwd(),pos.digits=2,oi
 	#SECONDS.PER.DAY=60*60*24
 	#oif.time+1/SECONDS.PER.DAY
 	#browser()
-	
+
+	if(!"oif"%in%names(X$data)) 
+		stop("oif variable required in cell.data, run append.z.scan before calling this function",call.=FALSE)	
+
 	on.exit(gc())
 	library(chron)
 	

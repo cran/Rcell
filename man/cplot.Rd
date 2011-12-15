@@ -2,9 +2,11 @@
 \alias{cplot}
 \alias{cplotmean}
 \alias{cplotmeans}
+\alias{cplotmedian}
 \alias{clayer}
 \alias{clayermean}
 \alias{clayermeans}
+\alias{clayermedian}
 \alias{plot.cell.data}
 
 \title{ Plotting Cell Data Objects }
@@ -19,7 +21,7 @@ cplot(X=NULL, x=NULL, subset = NULL, y=NULL, z=NULL, ...
   ,stat=list(NULL), position=list(NULL), log = "", as.factor="as.factor"
   ,xlim = c(NA, NA), ylim = c(NA, NA), xzoom = c(NA,NA), yzoom = c(NA,NA)
   ,xlab = deparse(substitute(x)), ylab = deparse(substitute(y)), asp = NA
-  ,select = NULL, exclude = NULL, QC.filter = TRUE, droplevels=TRUE
+  ,select = NULL, exclude = NULL, na.rm = TRUE, QC.filter = TRUE, droplevels=TRUE
   ,main = NULL, add = FALSE, layer = FALSE)
 
 clayer(...,geom="auto") 
@@ -27,6 +29,10 @@ clayer(...,geom="auto")
 cplotmeans(...,geom=c("point","errorbar","line")) 
 
 clayermeans(...,geom=c("point","errorbar","line"))
+
+cplotmedian(...,geom=c("point","errorbar","line"))
+
+clayermedian(...,geom=c("point","errorbar","line"))
 
 \method{plot}{cell.data}(x,y,...)
 
@@ -57,6 +63,7 @@ clayermeans(...,geom=c("point","errorbar","line"))
   \item{asp}{the y/x aspect ratio}
   \item{select}{character vector defining variables names to be included in the returned ggplot object, beside the ones required for the plot}
   \item{exclude}{character vector defining variables names to be excluded from the returned ggplot object}
+  \item{na.rm}{boolean indicating if registers with NA should be removed from the data.frame}
   \item{QC.filter}{a boolean value indicating if the quality control filter should 
     be applied over the data before plotting}
   \item{droplevels}{boolean specifying if the empty levels of factors should be dropped (removed)}   
@@ -88,6 +95,8 @@ clayermeans(...,geom=c("point","errorbar","line"))
   cplotmeans (alias cplotmean) is a wrapper over cplot with \code{stat}='summary' and \code{fun.data}='mean_cl_normal'. This function plots the mean and confidence limits for the mean of the data, grouped by levels of the x variable. The default confidence interval is of 95\%, and can be modified with the \code{conf.int} argument (passed to \code{\link{smean.cl.normal}}).
   
   clayermeans (alias clayermean) is a wrapper over cplot with \code{stat}='summary', \code{fun.data}='mean_cl_normal' and  \code{layer}=TRUE. 
+
+  cplotmedian (and clayermedian) is a wrapper over cplot with \code{stat}='summary', \code{fun.data}='median_hilow' and  \code{layer}=FALSE (TRUE). 
   
   plot.cell.data is a wrapper over cplot. It only accepts formula notation for the 'x' and 'y' aesthetics. It can be called by \code{plot} over a cell.data object.
   
@@ -136,16 +145,16 @@ cplot(X,f.tot.y~t.frame,facets=~AF.nM,size=0.5,geom="jitter")+
   clayermean(color="red")
 
 #plot means for each dose in the same plot
-cplotmean(X,f.tot.y~t.frame,color=AF.nM,as.factors="AF.nM",yzoom=c(0,6.2e6))
+cplotmean(X,f.tot.y~t.frame,color=AF.nM,as.factor="AF.nM",yzoom=c(0,6.2e6))
 
 #plotting histograms
 cplot(X,~f.tot.y)
 
 #map fill aesthetic to AF.nM variable coerced as factor
-cplot(X,~f.tot.y,fill=AF.nM,as.factors="AF.nM")
+cplot(X,~f.tot.y,fill=AF.nM,as.factor="AF.nM")
 
 #use position 'dodge' instead of 'stack'
-cplot(X,~f.tot.y,fill=AF.nM,as.factors="AF.nM",position="dodge")
+cplot(X,~f.tot.y,fill=AF.nM,as.factor="AF.nM",position="dodge")
 
 }
 \keyword{ hplot }

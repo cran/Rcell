@@ -31,7 +31,7 @@ cell.hclust(X,select,metric="cosangle",method="average",plot="heatmap"
   \item{min.cluster.size}{minimal amount of cells of a cluster}
   \item{formula}{casting formula, see details for specifics}
   \item{subset}{a boolean vector of length equal to the number of rows of the
-  dataset, or a conditional statement using the dataset¥s variable, that
+  dataset, or a conditional statement using the dataset?s variable, that
   specifies which registers should be included}
   \item{exclude}{character vector defining variables names to be excluded from the clustering}
   \item{QC.filter}{a boolean value indicating if the quality control filter should 
@@ -57,25 +57,27 @@ The function then calculates a distance matrix using the function \code{distance
 \author{ Alan Bush }
 \seealso{ \code{distancematrix},\code{\link{hclust}},\code{\link{heatmap}} }
 \examples{
-#load example dataset
-#warning: Any object named 'X' will be replaced
-data(ACL394filtered)
+  
+if(require(hopach,quietly=TRUE)){  #suggested package hopach required for this function
+  #load example dataset 
+  #warning: Any object named 'X' will be replaced
+  data(ACL394filtered)
 
-#Heriarchical clustering of cells by f.tot.y time course, 
-#using cosangle (uncentered correlation) metric and average linkage method.
-cell.hclust(X,"f.tot.y")
+  #Heriarchical clustering of cells by f.tot.y time course, 
+  #using cosangle (uncentered correlation) metric and average linkage method.
+  cell.hclust(X,"f.tot.y")
 
-#Heriarchical clustering of cells by f.tot.y time course, 
-#using euclid metric and complete linkage method.
-cell.hclust(X,"f.tot.y",metric="euclid",method="complete")
+  #Heriarchical clustering of cells by f.tot.y time course, 
+  #using euclid metric and complete linkage method.
+  cell.hclust(X,"f.tot.y",metric="euclid",method="complete")
 
-#Cut the tree at constant height and show the clusters
-cell.hclust(X,"f.tot.y",cutree="height",cutree.args=list(h=0.005))
+  #Cut the tree at constant height and show the clusters
+  cell.hclust(X,"f.tot.y",cutree="height",cutree.args=list(h=0.005))
 
-#redefining the formula, plot against time in minutes
-X<-transform(X,time.min=10+t.frame*15) #calculating the time of each t.frame
-cell.hclust(X,"f.tot.y",formula=ucid~variable+time.min)
-
+  #redefining the formula, plot against time in minutes
+  X<-transform(X,time.min=10+t.frame*15) #calculating the time of each t.frame
+  cell.hclust(X,"f.tot.y",formula=ucid~variable+time.min)
+}
 }
 \keyword{ cluster }
 \keyword{ hplot }

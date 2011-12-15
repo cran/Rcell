@@ -1,7 +1,18 @@
+Version 1.1-8
+* EBImage and hopach were 'suggested' but used unconditionally in some examples
+* vignettes PDFs size was reduced by using png figures when suited
+* More informative error messages in load.cellID.data
+* transform doesn´t add variables to as.factor
+* solved bug in cimage time.var argument
+* merge.cell.data gains add and warn arguments
+* optimized update.n.tot
+* several chanches to cimage, hopefully more intuitive behaviour
+
 Version 1.1-7
 * load.cellID.data can correctly load FRET split images
 * new function show.img
 * Cell-ID-vars vignette
+* Hmisc moved from Depends to Imports in DESCRIPTION
 
 Version 1.1-6
 * Improved vignette documentation

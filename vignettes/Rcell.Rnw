@@ -14,7 +14,7 @@
 
 \begin{document}
 
-\SweaveOpts{eps = FALSE, pdf = TRUE}
+\SweaveOpts{pdf = TRUE}
 \SweaveOpts{prefix.string=fig/Rcell}
 <<include=FALSE,echo=FALSE>>=
   if(!file.exists("fig")) dir.create("fig")  
@@ -191,12 +191,16 @@ print(
 
 Note that when only the right term of the formula is defined, \verb@cplot@ creates a histogram. From this histogram we can see that very few cells have \emph{fft.stat} larger than 0.5. We can see what these cells look like using the \verb@cimage@ function (Figure~\ref{fig:img4}). 
  
-<<img4,include=TRUE>>=
-img4<-cimage(X,channel="BF.out",subset=fft.stat>0.5&t.frame==11&pos%in%c(1,8,15,22,29),bg.col="white")
+<<img4,include=TRUE,eval=FALSE>>=
+cimage(X,channel="BF.out",subset=fft.stat>0.5&t.frame==11&pos%in%c(1,8,15,22,29))
 @
 
-<<include=FALSE,echo=FALSE>>= 
-writeImage(img4, 'fig/Rcell-img4.jpg', quality=80)
+<<include=FALSE,echo=FALSE,eval=TRUE>>= 
+if(require(EBImage,quietly=TRUE)){
+  writeImage(
+<<img4>>
+  ,'fig/Rcell-img4.jpg', quality=80)
+}
 @
 
 \setkeys{Gin}{width=0.2\textwidth}
