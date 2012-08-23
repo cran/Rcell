@@ -65,7 +65,7 @@ X<-QC.filter(X,fft.stat < 0.5) #apply the cut
 
 #filtering by the total number of frames in which a cell appears
 cplot(X,cellID~t.frame,fill=f.tot.y,geom="tile",facets=~pos) 
-X<-update.n.tot(X) #updating n.tot variable
+X<-update_n.tot(X) #updating n.tot variable
 cplot(X,~n.tot) #define where to apply the cut
 X<-QC.filter(X,n.tot==14) #keep cells that appear in all t.frames
 

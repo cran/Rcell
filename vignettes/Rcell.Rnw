@@ -223,10 +223,10 @@ You can see in Figure~\ref{fig:img4} that cells with \verb@fft.stat > 0.5@ are b
 X<-QC.filter(X,fft.stat<0.5)
 @
 
-Another useful way to filter a time courses experiment is by \emph{n.tot}, the total number of time frames in which a given cell appears. Spurious cells usually only appear in a single time frame. First we will use \verb@update.n.tot@ to update this variable, and then \verb@QC.filter@ to apply it.
+Another useful way to filter a time courses experiment is by \emph{n.tot}, the total number of time frames in which a given cell appears. Spurious cells usually only appear in a single time frame. First we will use \verb@update_n.tot@ to update this variable, and then \verb@QC.filter@ to apply it.
 
 <<echo=TRUE>>=
-X<-update.n.tot(X)
+X<-update_n.tot(X)
 X<-QC.filter(X,n.tot==14)
 @
 

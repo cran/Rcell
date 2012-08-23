@@ -12,7 +12,7 @@
 
 cimage(X,...)
 
-\method{cimage}{cell.data}(X,formula=NULL,facets=NULL,time.var=c('*time*','t.frame')
+\method{cimage}{cell.data}(X,formula=NULL,facets=NULL,time.var=c('*time*','t.frame','z.scan','z.slice')
   ,time.course=NULL,select=NULL,exclude=NULL,normalize.group='channel',...)
 
 \method{cimage}{cell.image}(X,formula=NULL,facets=NULL,scales='fixed'
@@ -48,6 +48,17 @@ cimage(X,...)
   \item{\dots}{further arguments for methods. \code{cimage} calls \code{\link{get.cell.image}}, so all the arguments of this function are available.}
 }
 \details{
+  
+\tabular{ll}{
+\code{subset} \tab logical expression indicating elements or rows to keep. Don't specify channel here \cr
+\code{channel.subset} \tab logical expression to specify which image to retrieve with channel and t.frame variables \cr
+\code{channel} \tab character vector of channels to retrieve. If specified, defines the order of the channels \cr
+\code{QC.filter} \tab a boolean value indicating if the quality control filter should be applied over the data \cr
+\code{N} \tab Number of random cells to select from each group. If NULL all cells are selected \cr
+\code{box.size} \tab size in pixels of the image containing the cells. This specifies the 'radius', i.e. the image will be a square of length 2*box.size+1\cr
+\code{contained.box} \tab boolean indicating if the XY position of the box should be corrected to be contained in the original image. Relevant for cells close to the image border. If FALSE the part of the box outside the original image will be filled with \code{bg.col} \cr
+\code{bg.col} \tab color to be used for the background of the images \cr
+}
 
   Read the cimage vignette for a tutorial on how to use this function: vignette('cimage')
 

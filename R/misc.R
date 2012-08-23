@@ -18,41 +18,9 @@ paste_data_error <- function(data,error,error.signif=1,plotmath=FALSE) {
 	x=10^digits*round(error/(10^digits))
 	d=abs(error.digits)+error.signif-as.numeric(error<1)
 	error.str<-as.character(10^digits*round(error/(10^digits)))
-	#for(i in (1:length(x))[!digits>=0])
-	#	error.str[i]<-sapply(x[i],formatC,digits=d[i],format="fg",flag="#")
-
-# 	ifelse(digits>=0
-# 		,as.character(10^digits*round(data/(10^digits)))
-# 		,formatC(10^digits*round(data/(10^digits)),digits=max(data.digits-error.digits+error.signif,1),format="fg",flag="#")
-# 	)
 	
-# 	error.str<-
-# 	ifelse(digits>=0
-# 		,as.character(10^digits*round(error/(10^digits)))
-# 		,formatC(10^digits*round(error/(10^digits)),digits=abs(error.digits)+error.signif-as.numeric(error<1),format="fg",flag="#")
-# 	)
-		
 	return(paste(data.str,error.str,sep=pm.sign))
 }
-
-
-# paste_data_error <- function(data,error,error.signif=1) {
-	# digits <- floor(log10(abs(data/error)))+error.signif-1
-	# digits <- max(digits,1)
-	# pm.sign=intToUtf8(177)
-	# return(
-		# ifelse(error<rep(1,times=length(error))
-			# ,ifelse(data>rep(1,times=length(data))
-				# ,paste(formatC(data,digits=digits+1,format="fg",flag="#"),pm.sign
-					  # ,formatC(error,digits=digits,format="fg",flag="#"),sep="")
-				# ,paste(formatC(data,digits=digits+1,format="fg",flag="#"),pm.sign
-					  # ,formatC(error,digits=digits+1,format="fg",flag="#"),sep="")
-			# )
-			# ,paste(format(data,digits=digits),pm.sign,format(error,digits=error.signif),sep="")		
-		# )
-	# )
-# }
-
 
 paste_parameter <- function(fit,param,error.signif=1){
 	if(class(fit)=="nls"){

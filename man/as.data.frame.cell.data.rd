@@ -11,7 +11,7 @@
 }
 \usage{
 \method{as.data.frame}{cell.data}(x,row.names=NULL,optional=FALSE,...,subset=TRUE
-  ,select=NULL,exclude=NULL,QC.filter=TRUE,na.rm=TRUE)
+  ,select=NULL,exclude=NULL,QC.filter=TRUE,na.rm=FALSE)
  
  \method{[[}{cell.data}(x,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE,na.rm=TRUE,...)
 
@@ -22,7 +22,7 @@
 \arguments{
   \item{x}{ cell.data object }
   \item{subset}{a boolean vector of length equal to the number of rows of the
-  dataset, or a conditional statement using the dataset¥s variable, which 
+  dataset, or a conditional statement using the dataset?s variable, which 
   specifies which registers should be included in the returned data.frame}
   \item{select}{character vector defining variables names to be included in the returned data.frame}
   \item{exclude}{character vector defining variables names to be excluded from the returned data.frame}

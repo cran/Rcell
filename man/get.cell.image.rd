@@ -42,7 +42,7 @@ is.cell.image(X)
   \item{X}{ cell.data object or data.frame that specifies the images}
   \item{subset}{logical expression indicating elements or rows to keep. Don't specify channel here.}
   \item{channel.subset}{logical expression to specify which image to retrieve with channel and t.frame variables.}
-  \item{channel}{character vector of channels to retrieve. }
+  \item{channel}{character vector of channels to retrieve. If specified, defines the order of the channels.}
   \item{time.course}{boolean indicating if the desired image montage is a time course (i.e. several images for the same cell)}
   \item{group}{character vector or quoted names of variables who's interaction define the groups from which select \code{N} random cells.}
   \item{N}{Number of random cells to select from each group. If NULL all cells are selected}

@@ -10,7 +10,7 @@ cimage <- function(X,...) UseMethod("cimage")
 #ToDo: allow for transformation funcions on images
 #ToDo: allow for anotation funcions, copy code from old package
 cimage.cell.data <- function(X,formula=NULL,facets=NULL
-							,time.var=c("*time*","t.frame"),time.course=NULL
+							,time.var=c("*time*","t.frame","z.scan","z.slice"),time.course=NULL
 							,select=NULL,exclude=NULL,normalize.group="channel",...){
 
 	#defining groups
@@ -314,8 +314,13 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 	#filtering by channel
 	if(!is.null(channel.subset))
 		data=subset(data,eval(channel.subset,data,parent.frame(n=1)))
-	if(!is.null(channel))
+	if(!is.null(channel)){
 		data=data[data$channel%in%channel,]
+		#redifining channel as ordered factor
+		data$channel<-factor(data$channel,levels=channel,ordered=TRUE) 	
+	}
+
+
 
 	return(get.cell.image.data.frame(data,box.size=box.size,...))
 }
@@ -509,9 +514,30 @@ show.img<-function(X,pos,t.frame=0,channel="BF.out",image.title=""
 }
 show.image<-show.img
 
+#*************************************************************************#
+#public 
+update_img.path<-function(X,img.path=getwd(),subset=NULL){
+	if(!isTRUE(is.cell.data(X))) stop ("First argument should be of class cell.data")
+	
+	#cheking that the image files exist in the new path
+	img.fnames=with(X$images,paste(img.path,image,sep="/"))
+	img.fnames.exist=file.exists(img.fnames)
+	if(sum(img.fnames.exist)<length(img.fnames.exist))
+		warning("some images could not be found in new path, e.g. ",X$images$image[!img.fnames.exist][1])
+
+	subset=substitute(subset)
+	if(is.null(subset)){
+		X$images$path<-as.factor(img.path)
+	} else {
+		X$images$path[eval(subset,X$images,parent.frame(n=1))]<-as.factor(img.path)
+	}
+	
+	return(X)
+}
+
 #####################cell.image transformation functions###################
 cnormalize<-function(X=NULL,normalize.group=c("channel"),...){
-	
+
 	normalize.group=as.character(normalize.group)
 	if(is.null(X)) return(setdiff(normalize.group,c("channel","sample","...")))
 	if(length(normalize.group)==0) return(X)
@@ -520,8 +546,13 @@ cnormalize<-function(X=NULL,normalize.group=c("channel"),...){
 	for(i in names(img.list)){
 		img<-EBImage::combine(X[img.list[[i]]])
 		img<-EBImage::normalize(img,separate=FALSE)
-		for(j in 1:length(img.list[[i]]))
-			X[[img.list[[i]][j]]]<-img[,,j]
+		n.frames<-length(img.list[[i]])
+		if(n.frames==1){
+			X[[img.list[[i]]]]<-img
+		} else {
+			for(j in 1:n.frames)
+				X[[img.list[[i]][j]]]<-img[,,j]
+		}
 	}
 
 	return(X)

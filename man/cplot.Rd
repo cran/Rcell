@@ -21,7 +21,7 @@ cplot(X=NULL, x=NULL, subset = NULL, y=NULL, z=NULL, ...
   ,stat=list(NULL), position=list(NULL), log = "", as.factor="as.factor"
   ,xlim = c(NA, NA), ylim = c(NA, NA), xzoom = c(NA,NA), yzoom = c(NA,NA)
   ,xlab = deparse(substitute(x)), ylab = deparse(substitute(y)), asp = NA
-  ,select = NULL, exclude = NULL, na.rm = TRUE, QC.filter = TRUE, droplevels=TRUE
+  ,select = NULL, exclude = NULL, na.rm = TRUE, QC.filter = TRUE
   ,main = NULL, add = FALSE, layer = FALSE)
 
 clayer(...,geom="auto") 
@@ -42,7 +42,7 @@ clayermedian(...,geom=c("point","errorbar","line"))
   \item{X}{ cell.data object }
   \item{x}{ either a variable symbol or expression, or a formula of the form y~x or ~x}
   \item{subset}{a boolean vector of length equal to the number of rows of the
-  dataset, or a conditional statement using the dataset¥s variable, which 
+  dataset, or a conditional statement using the dataset?s variable, which 
   specifies which registers should be included in the plot}
   \item{y}{ a variable symbol or expression to be plot in the y axis. Ignored if x is a formula. A vector of symbols is allowed}
   \item{z}{ a variable symbol specifying the "z" aesthetic mapping }
@@ -66,7 +66,6 @@ clayermedian(...,geom=c("point","errorbar","line"))
   \item{na.rm}{boolean indicating if registers with NA should be removed from the data.frame}
   \item{QC.filter}{a boolean value indicating if the quality control filter should 
     be applied over the data before plotting}
-  \item{droplevels}{boolean specifying if the empty levels of factors should be dropped (removed)}   
   \item{main}{character vector or expression for plot title}
   \item{add}{the plot is added as a layer to the last plot (returned by \code{\link{last_plot}})}
   \item{layer}{boolean. If TRUE a layer is returned instead of a new ggplot object. Mutually exclusive with \code{add}}

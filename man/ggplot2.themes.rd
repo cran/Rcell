@@ -43,23 +43,26 @@ theme_invisible(base_size = 12)
 }
 \examples{
 
-#creating example datset
-mdf <- data.frame(x <- seq(0, 10), y=rnorm(x), 
+#themes for ggplot2 version 0.9.1 or lower
+if (as.numeric_version(utils::packageVersion("ggplot2"))< as.numeric_version("0.9.2")) {
+
+	#creating example datset
+	mdf <- data.frame(x <- seq(0, 10), y=rnorm(x), 
                    f=factor(rep(letters[1:2], each=3, length=length(x))))
-#base plot
-p <- qplot(x, y, data=mdf, colour=f, geom=c("line", "point")) 
+	#base plot
+	p <- qplot(x, y, data=mdf, colour=f, geom=c("line", "point")) 
 
-#compare themes
-p + theme_grey() + opts(title="theme_grey()")
-p + theme_bw() + opts(title="theme_bw()")
-p + theme_minimal() + opts(title="theme_minimal()")
-p + theme_minimal_cb() + opts(title="theme_minimal_cb()")
-p + theme_minimal_cb_L() + opts(title="theme_minimal_cb_L()")
-p + theme_minimal_light() + opts(title="theme_minimal_light()")
-p + theme_fullframe() + opts(title="theme_fullframe()")
-p + theme_black() + opts(title="theme_black()",plot.title = theme_text(colour = "white",size=14))
-p + theme_complete_bw() + opts(title="theme_complete_bw()")
-p + theme_invisible() + opts(title="theme_invisible()")
-
+	#compare themes
+	p + theme_grey() + opts(title="theme_grey()")
+	p + theme_bw() + opts(title="theme_bw()")
+	p + theme_minimal() + opts(title="theme_minimal()")
+	p + theme_minimal_cb() + opts(title="theme_minimal_cb()")
+	p + theme_minimal_cb_L() + opts(title="theme_minimal_cb_L()")
+	p + theme_minimal_light() + opts(title="theme_minimal_light()")
+	p + theme_fullframe() + opts(title="theme_fullframe()")
+	p + theme_black() + opts(title="theme_black()",plot.title = theme_text(colour = "white",size=14))
+	p + theme_complete_bw() + opts(title="theme_complete_bw()")
+	p + theme_invisible() + opts(title="theme_invisible()")
+}
 }
 \keyword{manip}

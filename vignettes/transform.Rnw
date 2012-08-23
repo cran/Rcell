@@ -104,17 +104,17 @@ A common transformation is normalization, i.e. dividing the value of a variable 
 \item Join the cells datasets back together to retrieve the original dataset with the new variable.  
 \end{enumerate}
 
-All these steps are done by the function \verb@transform.by@, but it requires information on how each step should be done. For the first step, it needs to know how to partition the dataset. This is specified by passing a quoted list of variable, whos combination of levels specify a group. For example, if you want to divide the datset by position, the second argument of \verb@transform.by@ should be \verb@.(pos)@. If you want to divide your dataset by cell use \verb@.(pos,cellID)@. Note that cells in different position can have the same cellID, so the combination of \verb@pos@ and \verb@cellID@ uniquely identifies a cell. The variable \verb@ucid@ (for Unique Cell ID) is another way to uniquely identify a cell. 
+All these steps are done by the function \verb@transformBy@, but it requires information on how each step should be done. For the first step, it needs to know how to partition the dataset. This is specified by passing a quoted list of variablethat define the groups. For example, if you want to divide the datset by position, the second argument of \verb@transformBy@ should be \verb@.(pos)@. If you want to divide your dataset by cell use \verb@.(pos,cellID)@. Note that cells in different position can have the same cellID, so the combination of \verb@pos@ and \verb@cellID@ uniquely identifies a cell. The variable \verb@ucid@ (for Unique Cell ID) is another way to uniquely identify a cell. 
 Next we need to specify the name of the new variable to be created (\verb@norm.f.tot.y@ for example), and the definition for this variable, \verb@f.tot.y/f.tot.y[t.frame==0]@. With the square brackets we are selecting the value of \verb@f.tot.y@ when \verb@t.frame@ is cero. Remember to use the logical operator \verb@==@ and not the assignation operator \verb@=@ within the brackets.
 
 <<include=TRUE>>=
-X<-transform.by(X,.(pos,cellID),norm.f.tot.y=f.tot.y/f.tot.y[t.frame==0])
+X<-transformBy(X,.(pos,cellID),norm.f.tot.y=f.tot.y/f.tot.y[t.frame==0])
 @
 
 You can see the raw and normalized data in Figure~\ref{fig:f01}. Another way to normalize the data, is dividing by the mean of the first three values.
 
 <<include=TRUE>>=
-X<-transform.by(X,.(pos,cellID),norm2.f.tot.y=f.tot.y/mean(f.tot.y[t.frame<=2]))
+X<-transformBy(X,.(pos,cellID),norm2.f.tot.y=f.tot.y/mean(f.tot.y[t.frame<=2]))
 @
 
 \begin{figure}
@@ -198,33 +198,5 @@ reshape(X,pos+cellID~variable+t.frame,select="f.tot.y",subset=pos<=2&cellID<=10&
 
 see \verb@help(reshape.cell.data)@ for more details. 
 
-
- 
- 
-
-
-
-
-
-
-
-\begin{thebibliography}{}
-
-\bibitem[Pau et al. (2010)]{pau2010}
-Pau, Fuchs et al. (2010).
-\newblock EBImage: an R package for image processing with applications to cellular phenotypes.
-\newblock \emph{Bioinformatics}, 26(7):979-981.
-
-\bibitem[Colman-Lerner et al. (2005)]{acl2005}
-Colman-Lerner, Gordon et al. (2005).
-\newblock Regulated cell-to-cell variation in a cell-fate decision system.
-\newblock \emph{Nature}, 437(7059):699-706.
-
-\bibitem[Chernomoretz et al. (2008)]{cpmcb2008}
-Chernomoretz, Bush et al. (2008).
-\newblock Using Cell-ID 1.4 with R for Microscope-Based Cytometry.
-\newblock \emph{Curr Protoc Mol Biol.}, Chapter 14:Unit 14.18.
-
-\end{thebibliography}
 
 \end{document}

@@ -1,17 +1,22 @@
 #Rcell: R package for analysis of CellID datasets
 #ToDo: documentation on cell.data object
 
-#Strong dependence on ggplot2 package
-.onAttach <- function(lib, pkg, ...) {
-	theme_set(Rcell::theme_minimal_cb())
-}
-
 ##################### Package Constants #################################
 .conflicts.OK=TRUE
 .CELLID_ID_VARS=c("pos","t.frame","cellID")
 .CELLID_ID_VARS_DERIV=c(.CELLID_ID_VARS,"ucid","time")
 .CELLID_DROP_VARS=c("flag","num.pix","con.vol.1")
 ##################### cell.data functions ###############################
+
+#Strong dependence on ggplot2 package
+.onAttach <- function(lib, pkg, ...) {
+	#dealing with ggplot2 version
+	if (as.numeric_version(utils::packageVersion("ggplot2"))< as.numeric_version("0.9.2")) {
+		theme_set(Rcell::theme_minimal_cb())
+	} else {
+		theme_set(ggplot2::theme_bw())
+	}
+}
 
 #*************************************************************************#
 #public
@@ -80,7 +85,7 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 					cat(gsub("[a-zA-Z_]","",posdir[i])," ")
 					if(i %% 10 == 0) cat("\n")
 					
-					pos.data[[pos.index]]<-read.table(fname,sep="\t",head=TRUE,colClasses="numeric")
+					pos.data[[pos.index]]<-read.table(fname,sep="\t",header=TRUE,colClasses="numeric")
 					pos.data[[pos.index]]<-Hmisc::cleanup.import(pos.data[[pos.index]],pr=FALSE)
 					
 					#asserting same columns
@@ -100,7 +105,7 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 
 					#reading output_bf_fl_mapping
 					if(file.exists(fname2)){
-						bf.fl.mapping[[pos.index]]<-read.table(fname2,sep="\t",head=TRUE,as.is=TRUE)
+						bf.fl.mapping[[pos.index]]<-read.table(fname2,sep="\t",header=TRUE,as.is=TRUE)
 								
 						#creating flag table
 						pos.flag=.mk.flag.table(bf.fl.mapping[[pos.index]],pos=pos.index)
@@ -230,7 +235,7 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 	#checking the number of columns after reshaping
 	colNum.pos.data<-unlist(lapply(pos.data,function(x)dim(x)[2]))
 	if(length(unique(colNum.pos.data))>1){
-		print(data.frame(pos=loaded.pos,variables=colNum.pos.data))
+		print(data.frame(variables=colNum.pos.data))
 		stop("Positions have different number of variables after reshaping.")
 	}
 
@@ -484,7 +489,7 @@ load.pdata<-function(X,pdata="pdata.txt",by=NULL,path=getwd()){
 	if(class(pdata)=="character"){
 		if(!file.exists(paste(path,"/",pdata,sep=""))) 
 			stop("File ",pdata," not found at \n",path,"\n")
-		pdata=read.table(file=paste(path,"/",pdata,sep=""),head=TRUE)	
+		pdata=read.table(file=paste(path,"/",pdata,sep=""),header=TRUE)	
 	} else if (class(pdata)!="data.frame") 
 		stop("pdata should be of class data.frame or character (the filename of the pdata table)\n")
 		
@@ -504,6 +509,7 @@ transform.cell.data <- function(`_data`,...,QC.filter=TRUE){
 	#browser()
 	on.exit(gc())
 	dots<-as.list(match.call(expand.dots=FALSE)$...) 
+	if("subset" %in% names(dots)) stop("subset argument not available for transform.cell.data")
 	vars<-.get_var_names(dots,names(`_data`$data)) #retrieving names of required variables for calculation
 	new.data<-summarise(subset(`_data`$data,select=vars),...)
 	for(i in names(new.data))
@@ -526,7 +532,7 @@ transform.cell.data <- function(`_data`,...,QC.filter=TRUE){
 #public 
 #transforms the data.frame after spliting it by the specified variables
 #ToDo: add a subset argument to this function, so "cummulative" transformations can be done
-transform.by.data.frame <- function(`_data`,.by,...,subset=NULL){
+transformBy.data.frame <- function(`_data`,.by,...,subset=NULL){
 	
 	#browser()
 	on.exit(gc())
@@ -536,10 +542,13 @@ transform.by.data.frame <- function(`_data`,.by,...,subset=NULL){
 
 	#doing the transformation	
 	`_data`<-do.call("rbind", dlply(`_data`,.by,transform,...)) 
-		
+	
+	#removing row names
+	row.names(`_data`)<-NULL
+	
 	return(`_data`)	
 } 
-transform.by.default <- transform.by.data.frame
+transformBy.default <- transformBy.data.frame
 
 #*************************************************************************#
 #public 
@@ -548,13 +557,13 @@ transform.by.default <- transform.by.data.frame
 #ToDo: warn use of posibly outdated variables
 #ToDo: add subset index to transform registers
 #ToDo: add a subset argument to this function, so "cummulative" transformations can be done
-#ToDo: correct row.names
-transform.by.cell.data <- function(`_data`,.by,...,QC.filter=TRUE){
+transformBy.cell.data <- function(`_data`,.by,...,QC.filter=TRUE){
 	on.exit(gc())
 	dots<-as.list(match.call(expand.dots=FALSE)$...) 
+	if("subset" %in% names(dots)) stop("subset argument not available for transformBy.cell.data")
 	vars<-.get_var_names(dots,names(`_data`$data)) #retrieving names of required variables for calculation
 	vars<-unique(c("ucid","t.frame",vars,names(.by))) #adding names of id.vars and splitting vars
-		
+	
 	#doing the transformation
 	if(QC.filter  && class(`_data`$data$QC)=="logical") 
 		tdb<-do.call("rbind", dlply(subset(`_data`$data,QC,select=vars),.by,transform,...)) 
@@ -571,8 +580,6 @@ transform.by.cell.data <- function(`_data`,.by,...,QC.filter=TRUE){
 	for(i in names(dots)){
 		`_data`$transform[[i]]=list(call=dots[[i]],by=.by,QC.filter=QC.filter)
 		ivars=union(.get_var_names(dots[[i]],names(`_data`$data)),names(.by))
-		#if(setequal(ivars,intersect(ivars,`_data`$variables$as.factor)))
-		#	`_data`$variables$as.factor=union(`_data`$variables$as.factor,i)		
 	}
 	`_data`$variables$transformed=names(`_data`$transform)
 	`_data`$variables$all=unique(c(`_data`$variables$all,names(dots)))
@@ -582,15 +589,14 @@ transform.by.cell.data <- function(`_data`,.by,...,QC.filter=TRUE){
 
 #*************************************************************************#
 #generic
-#Creates the generic function transform.by
-transform.by <- function(`_data`,.by,...) UseMethod("transform.by")
+#Creates the generic function transformBy
+transformBy <- function(`_data`,.by,...) UseMethod("transformBy")
 
 #*************************************************************************#
 #calculates the total number of frames in which a cell was found (after QC filter)
-update.n.tot <- function(object,QC.filter=TRUE,...){
+update_n.tot <- function(object,QC.filter=TRUE,...){
 	on.exit(gc())
 
-	#transform.by(object,.(pos,cellID),n.tot=length(t.frame),QC.filter=QC.filter)
 	if(isTRUE(QC.filter)){
 		tdb<-ddply(subset(object$data,object$data$QC,select=c("ucid","t.frame")),.(ucid)
 				,function(df)data.frame(n.tot=length(df$t.frame))) 	
@@ -621,7 +627,7 @@ select.cells <- function(X, subset = TRUE, n.tot.subset=NULL ,QC.filter=TRUE){
 	
 	if(!missing(n.tot.subset)){
 		n.tot.subset=substitute(n.tot.subset)
-		X<-update.n.tot(X,QC.filter=QC.filter)
+		X<-update_n.tot(X,QC.filter=QC.filter)
 		X$data<-X$data[eval(n.tot.subset,X$data),]
 	}
 	
@@ -698,18 +704,22 @@ subset.cell.data <- function(x,subset=TRUE,select="all",exclude=NULL,QC.filter=F
 #public
 #coerce a cell.data object to a data.frame
 as.data.frame.cell.data <- function(x, row.names = NULL, optional = FALSE,...
-	,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE,na.rm=TRUE){
+	,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE,na.rm=FALSE){
 
 	subset=substitute(subset)
 	
-	if(QC.filter  && class(x$data$QC)=="logical")
+	if(QC.filter  && is.logical(x$data$QC))
 		data=x$data[x$data$QC,]
 	else
 		data=x$data
 	
 	select.vars<- .select(x$variables,select,exclude)
 	if(isTRUE(select.vars)) select.vars<-names(data)
-	data=data[eval(subset,data),select.vars]
+	if(isTRUE(subset)){
+		data=data[,select.vars]
+	} else {
+		data=data[eval(subset,data),select.vars]
+	}
 	if(isTRUE(na.rm)) data<-na.omit(data)	
 	return(as.data.frame.data.frame(data,row.names=row.names,optional=optional,...))
 }
@@ -755,6 +765,9 @@ QC.filter <- function(X, filter, subset=NULL){
 		X$data$QC=X$data$QC & eval(filter,X$data)
 	else
 		X$data$QC=X$data$QC & ( eval(filter,X$data) | !eval(subset,X$data) )
+	
+	#trating NAs as FALSE
+	X$data$QC[is.na(X$data$QC)]<-FALSE
 
 	#adding the information for undos as attributes of QC	
 	QC.attr.names=names(QC.attr)
@@ -1027,7 +1040,7 @@ aggregate.cell.data <- function(x, form.by, ..., FUN=mean
 								,subset=TRUE, select=NULL, exclude=NULL, QC.filter=TRUE){
 	args=as.list(match.call(expand.dots=FALSE))
 	if(isTRUE(try(is.formula(form.by),silent=TRUE))){ #formula
-		.data=do.call(as.data.frame.cell.data
+		.data=do.call(as.data.frame
 			,args[intersect(c("x","subset","QC.filter"),names(args))])
 		aggr.args<-list(form.by)
 		if("..." %in% names(args))aggr.args<-args["..."]
@@ -1103,434 +1116,6 @@ with.cell.data <- function(data,expr,subset=TRUE,select=NULL,exclude=NULL,QC.fil
 #Evaluate an R expression within de cell.data object (assigments allowed
 #within.cell.data
 
-##################### Plotting Functions ##################################
-
-#*************************************************************************#
-#public
-# Addapted from qplot in package ggplot2
-# cplot is a convenient wrapper function for creating ggplot objects of a cell.data object.
-# ToDo: Allow expresion when y is a vector
-# ToDo: dont transform x and y to factor if log scale is used
-# ToDo: change behaviour of as.factor for x/y vs other aesthetics
-# ToDo: when using vector as y, use order of variables in vector to assign color (ordered factor)
-# ToDo: include parent environment on the search of the eval of subset. When called from within a function, it has problems.
-cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ... 
-				, facets = NULL, margins=FALSE, geom = "auto"
-				, stat=list(NULL), position=list(NULL), log = "", as.factor="as.factor"
-				, xlim = c(NA, NA), ylim = c(NA, NA), xzoom = c(NA,NA), yzoom = c(NA,NA)
-				, xlab = deparse(substitute(x)), ylab = deparse(substitute(y)), asp = NA
-				, select = NULL, exclude = NULL, na.rm = TRUE, QC.filter = TRUE, droplevels=TRUE
-				, main = NULL, add = FALSE, layer = FALSE) {
-				
-  	subset=substitute(subset)
-  	on.exit(gc())
-  
-	#Asserting arguments
-  	if(add&&layer) stop("add and layer are mutually exclusive arguments\n") 
-  
-	#dealing with cell.data or data.frame
-  	if(!is.null(X)){			
-		if(is.cell.data(X)) data=X$data
-		else if(is.data.frame(X)) data=X
-		else stop("First argument should be of class cell.data or data.frame, not ",class(X)[1])
-	
-		#filtering by QC variable
-		if(is.logical(data$QC) && QC.filter){
-			if(!is.cell.data(X)) cat("Filtering by QC variable\n")
-				data=data[data$QC,]
-			}
-	}
-	
-  	argnames <- names(as.list(match.call(expand.dots=FALSE)[-1]))
-  	arguments <- as.list(match.call()[-1])
-
-	#dealing with formula notation
-  	if(isTRUE(try(is.formula(x),silent=TRUE))){
-  		if(length(x)==3){ # y~x
-  			argnames=c(argnames,"y")
-  			arguments$y=(y=x[[2]])
-  			arguments$x=(x=x[[3]])
-  		} else if (length(x)==2){ # ~x
-  			arguments$x=(x=x[[2]])
-  		} else stop("formula should be of the form y~x or ~x")	
-  	}
-
-  	aesthetics <- compact(arguments[ggplot2:::.all_aesthetics])
-  	aesthetics <- aesthetics[!ggplot2:::is.constant(aesthetics)]
-
-	#defining aesthetics as dataset variables only
-  	var_names <- .get_var_names(arguments,names(data),warn=TRUE)	
-  	aesthetics <- aesthetics[aesthetics %in% var_names | sapply(aesthetics,class)=="call"] 
-
-  	aes_names <- names(aesthetics)
-  	aesthetics <- ggplot2:::rename_aes(aesthetics)
-  	class(aesthetics) <- "uneval"
-
-	#dealing with new data
-  	if(!is.null(X)){ 
-		
-		inherit.aes=FALSE 
-		
-		#no x aesthetic
-		if(is.null(substitute(x))) 
-			if(!layer){ stop("x aesthetic required for new plot")
-			}else{
-				message("x aesthetic missing, inheriting aesthetics from plot, complete dataset included in layer")
-				var_names=names(data)	
-				inherit.aes=TRUE
-			}
-		
-		#variable selection to keep in ggplot object
-		if(!is.null(select)|!is.null(exclude)){
-			if(is.cell.data(X)) var_names=union(var_names,.select(X$variables,select,exclude))
-			else var_names=union(var_names,.select(list(all=names(data)),select,exclude))
-		}
-
-		#subsetting the data
-		if(!is.null(subset)) data=data[eval(subset,data,parent.frame(n=1)),]
-		if(dim(data)[1]==0) stop("no data left after subset")
-		data=data[var_names] 
-		
-		#removing NAs
-		if(isTRUE(na.rm)) data<-na.omit(data)
-
-		#dropping unsed levels of factors	
-		if(droplevels & any(sapply(data,is.factor))) data<-droplevels(data)			
-		
-    	#transforming as.factor variables to factors
-		if(!is.null(as.factor)){
-			if(is.cell.data(X)){
-				var_as_factors=intersect(var_names,.select(X$variables,as.factor))
-			} else if(is.data.frame(X)) {
-				var_as_factors=intersect(var_names,as.factor)
-			}
-			for(i in var_as_factors)
-				data[[i]]<-base::as.factor(data[[i]])
-			if(length(var_as_factors)>0) message(paste("treating",toString(var_as_factors),"as factor"))
-		}
-	}
-  
-	#dealing with vectorial y aesthetic
-  	sy=substitute(y)
-  	if(class(sy)=="call")
-			if(sy[[1]]=="c"){
-				if(is.null(X)) stop("data required when using multiple \"y\" mapping\n")
-				data=melt(data,measure.vars=.get_var_names(sy,names(data)))
-				aesthetics$y=quote(value)
-				if(is.null(aesthetics$colour)) aesthetics$colour=quote(variable)
-				aes_names <- names(aesthetics)
-				aesthetics <- ggplot2:::rename_aes(aesthetics)		
-			}
-  
-  
-  	# Work out plot data, and modify aesthetics, if necessary
-  	if ("auto" %in% geom) {
-    	if (stat == "qq" || "sample" %in% aes_names) {
-      		geom[geom == "auto"] <- "point"
-      		stat <- "qq"
-    	} else if (missing(y)) {
-      		geom[geom == "auto"] <- "histogram"
-      		if (is.null(ylab)) ylab <- "count"
-    	} else {
-      		if (missing(x)) {
-        	aesthetics$x <- bquote(seq_along(.(y)), aesthetics)
-      		}
-      	geom[geom == "auto"] <- "point"
-    	}
-  	}
-
-  	env <- parent.frame()
-
-	#creating layer list
-  	l=list()
-
-
-  	# Add geoms/statistics
-  	if (proto:::is.proto(position)) position <- list(position)
-  	mapply(function(g, s, ps) {
-    	if(is.character(g)) g <- ggplot2:::Geom$find(g)
-    	if(is.character(s)) s <- ggplot2:::Stat$find(s)
-    	if(is.character(ps)) ps <- ggplot2:::Position$find(ps)
-
-    	params <- arguments[setdiff(names(arguments), c(aes_names, argnames))]
-    	params <- lapply(params, eval, parent.frame(n=1))
-    	if(!is.null(X)){
-			l <<- c(l, list(layer(geom=g, stat=s, geom_params=params, stat_params=params
-								 ,position=ps, data=data, inherit.aes=inherit.aes, mapping=aesthetics) ))
-		}else{
-			l <<- c(l, list(layer(geom=g, stat=s, geom_params=params, stat_params=params
-								,position=ps, mapping=aesthetics)))
-		}
-	}, geom, stat, position)
-
-	#dealing with facets
-  	if (is.null(facets)) {
-    	l <- c(l,list(facet_null()))
-  	} else if (is.formula(facets) && length(facets) == 2) {
-    	l <- c(l,list(facet_wrap(facets)))
-  	} else {
-    	l <- c(l,list(facet_grid(facets = deparse(facets), margins = margins)))
-  	}    
-
-  	logv <- function(var) var %in% strsplit(log, "")[[1]]
-
-  	if (logv("x")) l <- c(l, list(scale_x_log10()))
-  	if (logv("y")) l <- c(l, list(scale_y_log10()))
-  
-  	if (!missing(xlim)) l <- c(l, list(xlim(xlim)))
-  	if (!missing(ylim)) l <- c(l, list(ylim(ylim)))
-
-  	if (!missing(xzoom)) l <- c(l, list(xzoom(xzoom)))
-  	if (!missing(yzoom)) l <- c(l, list(yzoom(yzoom)))
- 
-  	if(layer)
-		return(l)
-  	else{
-		if(add)	p <- last_plot()
-		else p <- ggplot(data=data, aesthetics, environment = parent.frame(n=1)) #env
-		p <- p + l 
-		if (!missing(xlab)) p <- p + xlab(xlab)
-		if (!missing(ylab)) p <- p + ylab(ylab)
-		if (!is.null(main)) p <- p + opts(title = main)
-	  	if (!is.na(asp)) p <- p + opts(aspect.ratio = asp)
-		return(p)
-  	}  
-}
-
-#*************************************************************************#
-#public
-#generic plot function is a wrapper to cplot
-plot.cell.data<-function(x,y,...){
-	args=as.list(match.call(expand.dots=TRUE))
-	args[[1]]<-args[[2]]
-	args$x<-y
-	args$y<-NULL
-	do.call(cplot,args)
-}
-
-#*************************************************************************#
-#public
-#creates a layer, calls cplot with layer=TRUE, add=FALSE
-# ToDo: test from within a function
-clayer <- function(...,geom="auto") {
-	#browser()
-	args=as.list(match.call(expand.dots=FALSE)[[2]])
-	args$geom=geom
-	args$layer=TRUE
-	args$add=FALSE
-	do.call(cplot,args)
-}
-
-#*************************************************************************#
-#public
-#as cplot but with stat="summary" fun.data="mean_cl_normal"
-#plots mean and 95% confidence interval
-# ToDo: test from within a function
-# ToDo: dont treat x and y variables as factor if geom=smooth or line
-# ToDo: check for non existing vars
-cplotmeans <- function(...,geom=c("point","errorbar","line")) {
-	#browser()
-	args=as.list(match.call(expand.dots=FALSE)[[2]])
-
-	if(!is.null(args$stat)) warning("Overwriting stat=",args$stat," argument by summary")
-	if(!is.null(args$fun.data)) warning("Overwriting fun.data=",args$fun.data," argument by mean_cl_normal")
-	if(!is.null(args$xlim)|!is.null(args$ylim)) warning("xlim and ylim filter the data BEFORE calculating the mean! use xzoom and yzoom instead")
-
-	args$geom=geom
-	args$stat=c("summary")
-	args$fun.data=c("mean_cl_normal")
-	do.call(cplot,args)
-}
-cplotmean <- cplotmeans
-
-#*************************************************************************#
-#public
-#as cplot but with stat="summary" fun.data="mean_cl_normal" and layer=TRUE
-#creates a layer of mean and 95% confidence interval
-#ToDo: error cuando es llamada desde dentro de otra funcion. Muy raro. Ver [2010.11.11]-6-clustering cut.plot.hclust
-clayermeans <- function(...,geom=c("point","errorbar","line")) {
-	if(length(match.call(expand.dots=FALSE))>1+!missing(geom))
-		args=as.list(match.call(expand.dots=FALSE)[[2]])
-	else
-		args=list()
-		
-	if(!is.null(args$stat)) warning("Overwriting stat=",args$stat," argument by summary")
-	if(!is.null(args$fun.data)) warning("Overwriting fun.data=",args$fun.data," argument by mean_cl_normal")
-	if(!is.null(args$xlim)|!is.null(args$ylim)) warning("xlim and ylim filter the data BEFORE calculating the mean! use xzoom and yzoom instead")
-		
-	args$geom=geom
-	args$layer=TRUE
-	args$add=FALSE
-	args$stat=c("summary")
-	args$fun.data=c("mean_cl_normal")
-	do.call(cplot,args)
-}
-clayermean <- clayermeans
-
-#*************************************************************************#
-#public
-#as cplot but with stat="summary" fun.data="median_hilow"
-#plots median and pair of outer quantiles (95%) having equal tail areas
-# ToDo: test from within a function
-# ToDo: dont treat x and y variables as factor if geom=smooth or line
-# ToDo: check for non existing vars
-cplotmedian <- function(...,geom=c("point","errorbar","line")) {
-	#browser()
-	args=as.list(match.call(expand.dots=FALSE)[[2]])
-
-	if(!is.null(args$stat)) warning("Overwriting stat=",args$stat," argument by summary")
-	if(!is.null(args$fun.data)) warning("Overwriting fun.data=",args$fun.data," argument by median_hilow")
-	if(!is.null(args$xlim)|!is.null(args$ylim)) warning("xlim and ylim filter the data BEFORE calculating the mean! use xzoom and yzoom instead")
-
-	args$geom=geom
-	args$stat=c("summary")
-	args$fun.data=c("median_hilow")
-	do.call(cplot,args)
-}
-
-#*************************************************************************#
-#public
-#as cplot but with stat="summary" fun.data="median_hilow" and layer=TRUE
-#plots median and pair of outer quantiles (95%) having equal tail areas
-clayermedian <- function(...,geom=c("point","errorbar","line")) {
-	if(length(match.call(expand.dots=FALSE))>1+!missing(geom))
-		args=as.list(match.call(expand.dots=FALSE)[[2]])
-	else
-		args=list()
-		
-	if(!is.null(args$stat)) warning("Overwriting stat=",args$stat," argument by summary")
-	if(!is.null(args$fun.data)) warning("Overwriting fun.data=",args$fun.data," argument by median_hilow")
-	if(!is.null(args$xlim)|!is.null(args$ylim)) warning("xlim and ylim filter the data BEFORE calculating the mean! use xzoom and yzoom instead")
-		
-	args$geom=geom
-	args$layer=TRUE
-	args$add=FALSE
-	args$stat=c("summary")
-	args$fun.data=c("median_hilow")
-	do.call(cplot,args)
-}
-
-
-#*************************************************************************#
-#public
-#defines the zoom of the plot. Different of limits because its done after statistical transformations
-#ToDo: log parameter for log axis
-zoom <- function(xzoom=c(NA,NA),yzoom=c(NA,NA),nx.breaks=n.breaks,ny.breaks=n.breaks,n.breaks=7){
-  if((!missing(xzoom))&(!missing(yzoom))){
-	return(list(coord_cartesian(xlim=xzoom,ylim=yzoom), scale_x_continuous(breaks=pretty(xzoom,n=nx.breaks))
-												   , scale_y_continuous(breaks=pretty(yzoom,n=ny.breaks))))
-  }else{
- 	if (!missing(xzoom)) return(list(coord_cartesian(xlim=xzoom) , scale_x_continuous(breaks=pretty(xzoom,n=nx.breaks))))
-	if (!missing(yzoom)) return(list(coord_cartesian(ylim=yzoom) , scale_y_continuous(breaks=pretty(yzoom,n=ny.breaks))))
-  }
-}
-xzoom <- function(xzoom=c(NA,NA),nx.breaks=7) Rcell::zoom(xzoom=xzoom,nx.breaks=nx.breaks)
-yzoom <- function(yzoom=c(NA,NA),ny.breaks=7) Rcell::zoom(yzoom=yzoom,ny.breaks=ny.breaks)
-
-#*************************************************************************#
-#public
-#herarchical clustering of cell data and heatmap plot
-#ToDo: use flashClust when available
-#ToDo: use dynamicTreecut functions for tree cutting
-#ToDo: provide an as.hclust and as.dist method?
-#ToDo: add a RowSideColors argument
-#ToDo: add labRow argument. Use variable name to create correct strign vector.
-#ToDo: use heatmap.2 from gplots package when available
-cell.hclust <- function(X,select
-				,metric="cosangle",method="average"
-				,plot="heatmap",main=NULL
-				,heatmap.col=colorRampPalette(c("green", "black", "red"), space="rgb",bias=2)(128)
-				,cutree="none",cutree.args=list(h=0.5)
-				,min.cluster.size=20
-				,formula=ucid ~ variable + t.frame
-				,subset=TRUE,exclude=NULL,QC.filter=TRUE
-				,col.select=NULL,col.exclude=NULL
-				,labRow=NA,...){
-	
-	non.creshape.args=c("plot","col.select","col.exclude","metric","method","main"
-						,"heatmap.col","cutree","cutree.args","min.cluster.size")
-	
-	if(!require(hopach)) stop("hopach package required")
-	
-	args=as.list(match.call(expand.dots=FALSE))
-	form=formals()
-	args[[1]]<-NULL
-	args$data<-args$X
-	args$X<-NULL
-	rd=do.call("creshape",c(args,form[setdiff(names(form)
-				,c(names(args),non.creshape.args))]))			
-
-	rd<-colwise(as.numeric)(rd)
-	#check if 1st term of formula is ucid
-	row.names=intersect(all.names(formula[2]),X$variables$all)
-	if(length(row.names)>1) stop("a single variable expected in the left term of the formula")
-	matrix.rd=data.matrix(data.frame(subset.data.frame(rd,select=setdiff(names(rd),row.names)),row.names=rd[,row.names])) 
-	col.select=.select(list(all=colnames(matrix.rd)),col.select,col.exclude)
-	
-	if(isTRUE(col.select)){ ColSideColors = as.character(rep(NA,ncol(matrix.rd)))
-	} else {ColSideColors =ifelse(colnames(matrix.rd) %in% col.select,NA,"gray")}
-	
-	if(is.null(main)) main=paste(metric,"metric,",method,"cluster method,",cutree,"tree cut")
-	
-	dmx=.asMatrixHdist(distancematrix(subset.matrix(matrix.rd,select=col.select),d=metric))
-	dimnames(dmx)<-list(dimnames(matrix.rd)[[1]],dimnames(matrix.rd)[[1]])
-	dmx=as.dist(dmx)
-	
-	hcx=hclust(dmx,method)
-
-	cell.subtree=data.frame()	
-	if(cutree=="height"){
-		pdev=dev.cur()
-		dev.new(width=5,height=5)
-		plot(hcx,hang=-1)
-		c1=do.call("rect.hclust",c(list(tree=hcx),cutree.args))
-		dev.set(pdev)
-		
-		for(i in 1:length(c1))
-			cell.subtree=rbind(cell.subtree,data.frame(cell=as.numeric(names(c1[[i]])),subtree=i))
-		names(cell.subtree)<-c(row.names,"subtree")
-
-		cell.subtree=transform.by(cell.subtree,.(subtree),subtree.n.cell=length(subtree))	
-		cell.subtree=transform(cell.subtree
-						,subtree.index=match(subtree,unique(subtree[subtree.n.cell>min.cluster.size])))	
-		
-		rsc=join(data.frame(ucid=rd[,row.names])	
-			,subset.data.frame(cell.subtree,select=c(row.names,"subtree.index"))
-			,by=row.names)
-		
-		if("heatmap" %in% plot)
-			heatmap(matrix.rd ,Colv=NA, Rowv=as.dendrogram(hcx) 
-				,col = heatmap.col ,main=main
-				,RowSideColors=as.character(rsc[,"subtree.index"])
-				,ColSideColors=ColSideColors,labRow=labRow,...)
-			
-	} else if(cutree=="dynamic") {
-		stop("cutree='dynamic' not implemented yet")
-	} else if(cutree=="hybrid") {	
-		stop("cutree='hybrid' not implemented yet")
-	} else if(cutree=="none") {	
-	
-		#browser()
-	
-		if("heatmap" %in% plot)
-			heatmap(matrix.rd ,Colv=NA, Rowv=as.dendrogram(hcx) 
-				,col = heatmap.col ,main=main
-				,ColSideColors=ColSideColors,labRow=labRow,...)
-	} else stop("unknown cutree method")
-	
-	chc=list(
-		data=rd
-		,matrix=matrix.rd
-		,dist=dmx
-		,hclust=hcx
-		,cell.subtree=cell.subtree
-	)
-	
-	return(invisible(chc))
-}
-chclust<-cell.hclust
-
-
 #####################Private Functions#####################################
 
 #*************************************************************************#
@@ -1578,23 +1163,6 @@ chclust<-cell.hclust
 		paste(h
 			,ifelse(substr(h,nh-1,nh-1)=="."|h%in%common.vars,"",".")
 		    ,ifelse(h%in%common.vars,"",identifier),sep=""))
-}
-
-#*************************************************************************#
-#private
-#workarround R bug http://r.789695.n4.nabble.com/importing-S4-methods-using-a-namespace-td1566732.html
-#code from hopach package hDistClass.R
-.asMatrixHdist<-function(from){
-	size <- from@Size
-	df <- matrix(0,size,size)
-	df[row(df) > col(df)] <- from@Data
-	df <- df + t(df)
-	labels <- from@Labels
-	dimnames(df) <- if(is.null(labels))
-			list(1:size,1:size)
-		else	
-			list(labels,labels)
-	return(df)
 }
 
 #*************************************************************************#

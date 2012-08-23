@@ -1,12 +1,22 @@
+Version 1.2-0 (Release for Current Protocols in Molecular Biology unit 14.18, 2012)
+* WARNING: update.n.tot and transform.by were renamed to update_n.tot and transformBy
+* New stats for ggplot2 stat_summaryGroup, stat_bootstrap, stat_interactionError
+
+Version 1.1-9
+* update.n.tot renamed to update_n.tot
+* transform.by renamed to transformBy
+* new function uptade_img.path
+
 Version 1.1-8
 * EBImage and hopach were 'suggested' but used unconditionally in some examples
 * vignettes PDFs size was reduced by using png figures when suited
 * More informative error messages in load.cellID.data
-* transform doesn´t add variables to as.factor
+* transform does not add variables to as.factor
 * solved bug in cimage time.var argument
 * merge.cell.data gains add and warn arguments
 * optimized update.n.tot
 * several chanches to cimage, hopefully more intuitive behaviour
+* compatibility with ggplot2 version 0.9.0
 
 Version 1.1-7
 * load.cellID.data can correctly load FRET split images

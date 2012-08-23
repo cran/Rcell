@@ -1,11 +1,12 @@
-\name{update.n.tot}
+\name{update_n.tot}
+\alias{update_n.tot}
 \alias{update.n.tot}
 \title{ Calculate Total Number of Frames for Each Cell}
 \description{
 updates n.tot, the total amounts of frames in which a given cell appears
 }
 \usage{
-update.n.tot(object, QC.filter = TRUE,...)
+update_n.tot(object, QC.filter = TRUE,...)
 }
 
 \arguments{
@@ -23,10 +24,10 @@ update.n.tot(object, QC.filter = TRUE,...)
 data(ACL394)
 
 #update n.tot variable
-X<-update.n.tot(X)
+X<-update_n.tot(X)
 
 #this command is equivalent to
-X<-transform.by(X,.(ucid), n.tot=length(t.frame))
+X<-transformBy(X,.(ucid), n.tot=length(t.frame))
 
 }
 \keyword{manip}

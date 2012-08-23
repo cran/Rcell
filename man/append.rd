@@ -5,6 +5,7 @@
 \alias{append.anular.r}
 \alias{append.anular.c}
 \alias{append.memRec.y}
+\alias{append.memRec.r}
 
 \title{Append Variables}
 \description{
@@ -25,6 +26,7 @@ append.anular.r(X)
 append.anular.c(X)	
 
 append.memRec.y(X)	
+append.memRec.r(X)	
 }
 \arguments{
   \item{X}{cell.data object }

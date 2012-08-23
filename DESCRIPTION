@@ -1,7 +1,7 @@
 Package: Rcell
 Type: Package
-Version: 1.1-8
-Date: 2011-12-15
+Version: 1.2-0
+Date: 2012-08-23
 Title: Microscopy Based Cytometry Data Analysis Package
 Author: Alan Bush <abush@fbmc.fcen.uba.ar>
 Maintainer: Alan Bush <abush@fbmc.fcen.uba.ar>
@@ -20,6 +20,6 @@ Encoding: latin1
 URL: http://www.lbms.df.uba.ar, http://sourceforge.net/projects/cell-id
 LazyData: no
 BuildVignettes: no
-Packaged: 2012-03-15 20:51:13 UTC; Usuario
+Packaged: 2012-08-28 20:25:36 UTC; Usuario
 Repository: CRAN
-Date/Publication: 2012-03-16 14:33:59
+Date/Publication: 2012-08-29 14:20:28
