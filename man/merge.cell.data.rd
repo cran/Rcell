@@ -10,7 +10,7 @@
 
 \usage{
 
-\method{merge}{cell.data}(x,y,by=NULL,na.rm=FALSE,add=FALSE,warn=TRUE,...)
+\method{merge}{cell.data}(x,y,by=NULL,na.rm=FALSE,add=FALSE,warn=TRUE,pos.offset=NULL,...)
 
 load.pdata(X,pdata="pdata.txt",by=NULL,path=getwd())
 
@@ -24,6 +24,7 @@ load.pdata(X,pdata="pdata.txt",by=NULL,path=getwd())
   \item{na.rm}{should NAs be removed before merging}
   \item{add}{boolean indicating if new values should be added to previously merged ones}
   \item{warn}{boolean indicating if warnings should be issued}
+  \item{pos.offset}{position offset used when merginf cell.data objects}
   \item{pdata}{either a string with the filename of a tab delimited text file containing the data to be merged, or a data.frame to merge}
   \item{path}{string containing the path to the location of the tab delimited file to be loaded}
   \item{\dots}{additional arguments to be passed to or from methods}

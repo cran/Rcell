@@ -17,13 +17,25 @@ cimage.cell.data <- function(X,formula=NULL,facets=NULL
 	group=c()
 	if(!is.null(formula)){
 		pformula=.parse.formula(formula)
-		group=c(pformula$lterm,pformula$rterm)
+		group=c(pformula$lterm,pformula$rterm,pformula$sterm)
 	}
 	if(!is.null(facets)){
 		pfacets=.parse.formula(facets)
-		group=c(group,pfacets$lterm,pfacets$rterm)
+		group=c(group,pfacets$lterm,pfacets$rterm,pfacets$sterm)
 	}
 
+	#evaluating expressions in formulas
+	if(length(group)>0)
+		for(i in 1:length(group)){
+			vars <- all.vars(parse(text=group[i]))
+			if(all(vars%in%names(X$data))&!(group[i]==vars[1])){ 
+			#only for expressions (to be evaluated) with all variables in X$data
+				X$data[[make.names(group[i])]] <- eval(parse(text=group[i]),X$data,parent.frame(n=2))
+				group[i] <- make.names(group[i])
+			}
+		}
+	
+	X$variables$all<-names(X$data)
 	time.var=intersect(group,.select(X$variables,time.var,warn=FALSE))
 	if(isTRUE(time.var)) time.var<-NULL
 	group=setdiff(group,c(".","...","sample","cell","cells","cellID","ucid","channel",time.var))
@@ -45,7 +57,7 @@ cimage.cell.data <- function(X,formula=NULL,facets=NULL
 	#cell.image transformations
 	ci<-cnormalize(ci,normalize.group)
 
-	return(cimage.cell.image(ci,formula=formula,facets=facets,...))
+	return(cimage.cell.image(ci,formula=formula,facets=facets,allow.expressions=TRUE,...))
 }
 
 
@@ -81,60 +93,72 @@ plot.Image<-function(x,width=NULL,height=NULL,omi=1,interpolate=FALSE,vp=NULL,..
 #*************************************************************************#
 #public 
 #ToDo: add box arround facets legends
-#ToDo: allow to multi layer image specification with formula=...~channel|t.frame
-cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
+cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed",allow.expressions=FALSE
 							   ,nx=NULL,ny=NULL,facets.nx=NULL,facets.ny=NULL
 							   ,bg.col="white",border=1,facets.border=1,rev.y=TRUE
 							   ,font.size=14,font.col="black",display=interactive(),...){
 
-	imgdf<-img.desc(X)
+	imgdf<-droplevels(img.desc(X))
 
 	#cheking formula
 	if(is.null(formula)){ #no formula
 		if(is.null(facets)){ #no formula nor facets
+			#just tiling images toghether
 			outimg<-tile(normalize(EBImage::combine(X)),nx=ceiling(sqrt(length(X))))
 			if(display) EBImage::display(outimg)
 			return(invisible(outimg)) #like print.cell.image
 			
 		} else { #if facets but no formula, just tile images 
-			pformula=list(lterm=".",rterm="img.index",type="wrap_horizontal") 
+			pformula=list(lterm=".",rterm="img.index",sterm=NULL,type="wrap_horizontal") 
 			if(scales!="none") scales="free"
 		}
 	} else { #formula
 		if(!is.formula(formula)) stop("formula required")
-		.check_formula(formula,names(imgdf))
-		pformula=.parse.formula(formula)
+		if(!allow.expressions) .check_formula(formula,names(imgdf))
+		pformula=.parse.formula(formula,force.valid.names=allow.expressions)
 	}
 	
 	#working out facets
-	if(is.null(facets)){ #no facet
-		imgdf<-transform(imgdf,facet_id=factor(1),facet_x=1,facet_y=1)
-		pfacets<-list(lterm=".",rterm=".",type="none") 
+	if(is.null(facets)&is.null(pformula$sterm)){ #no facets
+		imgdf<-transform(imgdf,facet_id=factor(1),facet_x=1,facet_y=1,facet_z=1)
+		pfacets<-list(lterm=".",rterm=".",sterm=NULL,type="none") 
 		if(scales!="none") scales="fixed"
 	} else { #faceting
-		if(!is.formula(facets)) stop("facets should be a formula")
-		.check_formula(facets,names(imgdf))
-		pfacets=.parse.formula(facets)
-		if(pfacets$type=="none"&scales!="none") scales="free"
-		imgdf<-.append.panel.idxy(imgdf,pfacets,var.prefix="facet_",nx=facets.nx,ny=facets.ny,rev.y=rev.y)
+		if(!is.null(facets)){ #facet formula preset in call
+			if(!is.formula(facets)) stop("facets should be a formula")
+			if(!allow.expressions) .check_formula(facets,names(imgdf))
+			pfacets=.parse.formula(facets,force.valid.names=allow.expressions)
+			pfacets$sterm<-unique(c(pformula$sterm,pfacets$sterm))
+		} else { #no facet fomula, but sterm present 
+			pfacets<-list(lterm=".",rterm=".",sterm=pformula$sterm,type="none")
+		}
+		
+		if(pfacets$type=="none" & scales!="none" & pformula$type=="grid") scales="free"
+		imgdf<-.append.panel.idxyz(imgdf,pfacets,var.prefix="facet_",nx=facets.nx,ny=facets.ny,rev.y=rev.y)
 	}
 	
-	group.var=setdiff(c(pformula$lterm,pformula$rterm,pfacets$lterm,pfacets$rterm),".")
+	#grouping vars
+	group.var=setdiff(c(pformula$lterm,pformula$rterm,pfacets$lterm,pfacets$rterm,pfacets$sterm),".")
+
+	#doing some assertions
 	if(anyDuplicated(group.var)) warning("some variable is duplicated between formula and facets")
 	if(max(ddply(imgdf,group.var,function(df) data.frame(n=dim(df)[1]))$n)>1){
 		warning("formula and facets don't uniquely specify a cell image, some selected images are not shown")
 	}
 
+	#calculating images positions
 	if(scales=="fixed"|scales=="none"){
-		imgdf<-.append.panel.idxy(imgdf,pformula,var.prefix="img_",nx=nx,ny=ny,rev.y=rev.y)
+		imgdf<-.append.panel.idxyz(imgdf,pformula,var.prefix="img_",nx=nx,ny=ny,rev.y=rev.y)
 	} else if (scales=="free"){
-		imgdf<-do.call("rbind",dlply(imgdf,.(facet_id),.append.panel.idxy,pform=pformula,var.prefix="img_",nx=nx,ny=ny,rev.y=rev.y))
+		imgdf<-do.call("rbind",dlply(imgdf,.(facet_id),.append.panel.idxyz,pform=pformula,var.prefix="img_",nx=nx,ny=ny,rev.y=rev.y))
 	} else stop("unknown value for scales argument")
 	
-	#ToDo: check for image homogeneity
-	img.size=dim(X[[1]])[[1]]
+	#cheking all images are the same size
+	img.size<-unique(sapply(X,function(x)dim(x)[1]))
+	if(length(img.size)>1) stop("images of different size")
 	imgb=img.size+border
 
+	#building facets
 	facets.img<-
 	dlply(imgdf,.(facet_id),function(df,X){
 		max.x=max(df$img_x)
@@ -147,15 +171,16 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 		}
 		return(panel)
 	},X=X)
+
 	facets.df<-ddply(imgdf,.(facet_id),function(df) 
-		df[1,intersect(names(df),c(paste("facet_",c("id","id_x","id_y","x","y"),sep=""),pfacets$lterm,pfacets$rterm))]) 
+		df[1,intersect(names(df),c(paste("facet_",c("id","id_x","id_y","x","y","z"),sep=""),pfacets$lterm,pfacets$rterm,pfacets$sterm))]) 
 
 	#agregar axis aca si scale free
 	if (scales=="free"){
 		xaxis<-dlply(imgdf,.(facet_id),.axis,pform=pformula,side=1,img.size=img.size,border=border
-											,font.size=font.size,font.col=font.col,bg.col=bg.col,line.col=0)
+											,font.size=font.size)#,font.col=font.col,bg.col=bg.col,line.col=0)
 		yaxis<-dlply(imgdf,.(facet_id),.axis,pform=pformula,side=2,img.size=img.size,border=border
-											,font.size=font.size,font.col=font.col,bg.col=bg.col,line.col=0)
+											,font.size=font.size)#,font.col=font.col,bg.col=bg.col,line.col=0)
 		for(i in names(facets.img)){
 			xdim=dim(facets.img[[i]])[1]+dim(yaxis[[i]])[1]
 			ydim=dim(facets.img[[i]])[2]+dim(xaxis[[i]])[2]
@@ -177,11 +202,8 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 			xlabelpos<-(xdim/2) - nchar(i)*floor(font.size/4)
 					
 			facets.img[[i]]<-
-			drawtext(tmp
-				,xy=c(xlabelpos,font.size)
-				,labels=i
-				,font=drawfont(size=font.size)
-				,col=font.col)
+			drawText(tmp,labels=i,x=xlabelpos,y=font.size,adj=c(0,0))
+
 		}
 	}
 
@@ -190,18 +212,23 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 
 	max.x=max(facets.df$facet_x)
 	max.y=max(facets.df$facet_y)
-
-	outimg=Image(bg.col,colormode="Grayscale", dim = c(max.x*(fct.x+facets.border)+facets.border,max.y*(fct.y+facets.border)+facets.border))
+	max.z=max(facets.df$facet_z)
+	
+	#outimg=Image(bg.col,colormode="Grayscale", dim = c(max.x*(fct.x+facets.border)+facets.border,max.y*(fct.y+facets.border)+facets.border))
+	outimg_x_px <- max.x*(fct.x+facets.border)+facets.border
+	outimg_y_px <- max.y*(fct.y+facets.border)+facets.border
+	outimg<-rlply(max.z,Image(bg.col,colormode="Grayscale", dim = c(outimg_x_px,outimg_y_px)))
 
 	#compaginar facets
 	for(i in facets.df$facet_id){
 		x<-facets.df[facets.df$facet_id==i,"facet_x"]	
 		y<-facets.df[facets.df$facet_id==i,"facet_y"]
+		z<-facets.df[facets.df$facet_id==i,"facet_z"]
 		px.start.x<-((x-1)*(fct.x+facets.border)+facets.border+1)
 		px.end.x<-px.start.x+dim(facets.img[[i]])[1]-1
 		px.start.y<-((y-1)*(fct.y+facets.border)+facets.border+1)
 		px.end.y<-px.start.y+dim(facets.img[[i]])[2]-1
-		outimg[px.start.x:px.end.x,px.start.y:px.end.y]<-facets.img[[i]]
+		outimg[[z]][px.start.x:px.end.x,px.start.y:px.end.y]<-facets.img[[i]]
 	}
 
 	#agregar facets axis si facet grid
@@ -209,36 +236,47 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed"
 	if(pfacets$type %in% c("grid") & scales!="none"){
 
 		facets.df<-transform(facets.df,img_x=facet_x,img_y=facet_y)
-		xfacetsaxis<-.axis(facets.df,pform=pfacets,side=3,img.size=fct.x,border=facets.border,font.size=font.size,font.col=font.col,bg.col=bg.col,line.col=0)
-		yfacetsaxis<-.axis(facets.df,pform=pfacets,side=4,img.size=fct.y,border=facets.border,font.size=font.size,font.col=font.col,bg.col=bg.col,line.col=0)
+		xfacetsaxis<-.axis(facets.df,pform=pfacets,side=3,img.size=fct.x,border=facets.border,font.size=font.size)#,font.col=font.col,bg.col=bg.col,line.col=0)
+		yfacetsaxis<-.axis(facets.df,pform=pfacets,side=4,img.size=fct.y,border=facets.border,font.size=font.size)#,font.col=font.col,bg.col=bg.col,line.col=0)
 
 		h.xfacetsaxis=dim(xfacetsaxis)[2]
 
-		tmp=Image(bg.col,colormode="Grayscale", dim = c(dim(outimg)[1]+dim(yfacetsaxis)[1],dim(outimg)[2]+h.xfacetsaxis))
-		tmp[1:dim(outimg)[1],(h.xfacetsaxis+1):(dim(outimg)[2]+h.xfacetsaxis)]<-outimg
-		tmp[1:dim(xfacetsaxis)[1],1:h.xfacetsaxis]<-xfacetsaxis
-		tmp[(dim(outimg)[1]+1):(dim(outimg)[1]+dim(yfacetsaxis)[1]),(h.xfacetsaxis+1):dim(tmp)[2]]<-yfacetsaxis
+		tmp<-list()
+		for(i in 1:max.z){
+			tmp[[i]]<-Image(bg.col,colormode="Grayscale", dim = c(outimg_x_px+dim(yfacetsaxis)[1],outimg_y_px+h.xfacetsaxis))
+			tmp[[i]][1:outimg_x_px,(h.xfacetsaxis+1):(outimg_y_px+h.xfacetsaxis)]<-outimg[[i]]
+			tmp[[i]][1:dim(xfacetsaxis)[1],1:h.xfacetsaxis]<-xfacetsaxis
+			tmp[[i]][(outimg_x_px+1):(outimg_x_px+dim(yfacetsaxis)[1]),(h.xfacetsaxis+1):(outimg_y_px+h.xfacetsaxis)]<-yfacetsaxis
+		}
+		outimg<-tmp
+		outimg_x_px <- outimg_x_px + dim(yfacetsaxis)[1] 
+		outimg_y_px <- outimg_y_px + dim(xfacetsaxis)[2] 
+	}
+
+	#agregar axes aca si scale fixed y formula grid
+	if (scales=="fixed" & pformula$type=="grid"){
+
+		xaxis<-.axis(imgdf,pform=pformula,side=1,img.size=img.size,border=border,font.size=font.size)#,font.col=font.col,bg.col=bg.col,line.col=0)
+		yaxis<-.axis(imgdf,pform=pformula,side=2,img.size=img.size,border=border,font.size=font.size)#,font.col=font.col,bg.col=bg.col,line.col=0)
+
+		xdim=outimg_x_px+dim(yaxis)[1]
+		ydim=outimg_y_px+dim(xaxis)[2]
+
+		tmp<-list()
+		
+		for(z in 1:max.z){
+			tmp[[z]]<-Image(bg.col,colormode="Grayscale", dim = c(xdim,ydim))
+			tmp[[z]][(dim(yaxis)[1]+1):xdim,1:outimg_y_px]<-outimg[[z]]
+			for(i in 1:max.y)
+				tmp[[z]][1:(dim(yaxis)[1]),(i*(fct.y+facets.border)-dim(yaxis)[2]+1+h.xfacetsaxis):(i*(fct.y+facets.border)+h.xfacetsaxis)]<-yaxis 
+			for(i in 1:max.x)
+				tmp[[z]][(dim(yaxis)[1]+1+(i-1)*(fct.x)+i*facets.border):(dim(yaxis)[1]+(i-1)*(fct.x)+i*facets.border+dim(xaxis)[1]),(outimg_y_px+1):ydim]<-xaxis
+		}
+
 		outimg<-tmp
 	}
 
-	#agregar axes aca si scale fixed
-	if (scales=="fixed"){
-		xaxis<-.axis(imgdf,pform=pformula,side=1,img.size=img.size,border=border,font.size=font.size,font.col=font.col,bg.col=bg.col,line.col=0)
-		yaxis<-.axis(imgdf,pform=pformula,side=2,img.size=img.size,border=border,font.size=font.size,font.col=font.col,bg.col=bg.col,line.col=0)
-
-		xdim=dim(outimg)[1]+dim(yaxis)[1]
-		ydim=dim(outimg)[2]+dim(xaxis)[2]
-
-		tmp<-Image(bg.col,colormode="Grayscale", dim = c(xdim,ydim))
-		tmp[(dim(yaxis)[1]+1):xdim,1:(dim(outimg)[2])]<-outimg
-		for(i in 1:max.y)
-			tmp[1:(dim(yaxis)[1]),(i*(fct.y+facets.border)-dim(yaxis)[2]+1+h.xfacetsaxis):(i*(fct.y+facets.border)+h.xfacetsaxis)]<-yaxis 
-		for(i in 1:max.x)
-			tmp[(dim(yaxis)[1]+1+(i-1)*(fct.x)+i*facets.border):(dim(yaxis)[1]+(i-1)*(fct.x)+i*facets.border+dim(xaxis)[1]),(dim(outimg)[2]+1):ydim]<-xaxis
-
-		outimg<-tmp
-	}
-
+	outimg<-EBImage::combine(outimg)
 	attr(outimg,"img.desc")<-imgdf
 	if(display) EBImage::display(outimg,title="cimage")
 	return(invisible(outimg))
@@ -287,19 +325,17 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 
 	#subsetting the dataset
 	if(!is.null(subset))
-		data=data[eval(subset,data,parent.frame(n=1)),intersect(var_names,names(data))]
+		data=data[eval(subset,data),intersect(var_names,names(data))]
+		#data=data[eval(subset,data,parent.frame(n=1)),intersect(var_names,names(data))]
 	else 
 		data=subset(data,select=var_names)
 
 	#selecting N random cells per group 
-	if(!is.null(N)&!is.na(N)&N>0){
-		if(length(group)>0)
-			data<-do.call("rbind",dlply(data,group,.sample.N.ucid,N))
-		 else  #random sampling if no groups are specifyied
-			data<-.sample.N.ucid(data,N)
-	} else { #selecting all cells
-		data<-.sample.N.ucid(data,N=NULL)
-	}
+	if(is.null(N)|is.na(N)|N==0|tolower(N)=="all") N<-NULL
+	if(length(group)>0) #sampling by group
+		data<-do.call("rbind",dlply(data,group,.sample.N.ucid,N))
+	 else  #random sampling if no groups are specifyied
+		data<-.sample.N.ucid(data,N)
 
 	if(!time.course&max(table(data$ucid))>0){ #if several times per cell in a group, and NOT a time course
 		data<- #selecting random times
@@ -309,7 +345,8 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 
 	#"unfolding" dataset
 	X$images<-transform(X$images,image=factor(image))
-	data=merge(data,X$images,by=c("pos","t.frame"),suffixes = c("",""))
+	merge.vars<-setdiff(names(X$images),setdiff(names(data),c("pos","t.frame"))) #removing vars that might cause problems when merging
+	data=merge(data,X$images[,merge.vars],by=c("pos","t.frame"),suffixes = c("",""))
 
 	#filtering by channel
 	if(!is.null(channel.subset))
@@ -319,8 +356,6 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 		#redifining channel as ordered factor
 		data$channel<-factor(data$channel,levels=channel,ordered=TRUE) 	
 	}
-
-
 
 	return(get.cell.image.data.frame(data,box.size=box.size,...))
 }
@@ -361,7 +396,7 @@ get.cell.image.data.frame <- function(X,box.size=20,contained.box=FALSE,bg.col=0
 	for(i in unique(img.desc$path.image)){
 		df=subset(img.desc,path.image==i)
 
-		img<-readImage(i)
+		capture.output(img<-EBImage::readImage(i)) #capture.output to avoid anoying text
 		max.x<-dim(img)[1]
 		max.y<-dim(img)[2]
 
@@ -486,7 +521,7 @@ show.img<-function(X,pos,t.frame=0,channel="BF.out",image.title=""
 	#loading the images
 	img.list<-list()
 	for(i in 1:length(img.fnames)){
-		img.list[[i]]<-EBImage::readImage(img.fnames[i])
+		img.list[[i]]<-capture.output(EBImage::readImage(img.fnames[i])) #capture.output to avoid anoying text
 		if(isTRUE(normalize)) img.list[[i]]<-EBImage::normalize(img.list[[i]])
 	}
 
@@ -714,97 +749,214 @@ drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1)
 	invisible(img)
 }
 
+#work arround to replace EBImage deprcated function drawtext
+drawText<-function(img,labels,x=NULL,y=NULL,adj=c(0,0),reuseLabels=TRUE){
+
+img.width<-dim(img)[1]
+img.height<-dim(img)[2]
+
+if(is.null(x)) x<-img.width/2
+if(is.null(y)) y<-img.width/2
+
+#create name to uniquely identify label temporary tif file
+img.fname<-paste(tempdir(),"/Rcell_drawText_"
+			,paste(digest::digest(img),digest::digest(labels),x,y,adj[1],adj[2],sep="_")
+			,".tif",sep="")
+
+#create file if it doesn't exist
+if(!file.exists(img.fname)|!reuseLabels){
+
+	#create device 
+	tiff(filename = img.fname,
+		width = img.width, height = img.height, units = "px", pointsize = 12,
+		bg = "white", family = "")	
+
+	#change graphical parameters
+	op<-par(mar=c(0,0,0,0),oma=c(0,0,0,0))
+	on.exit(par(op))
+
+	#plot current img in device
+	EBImage::display(img,method = "raster")
+	
+	#add text to img
+	text(x/img.width,1-y/img.height,labels,adj=adj)
+
+	#close device
+	dev.off()
+}
+
+#open image and change colorMode 
+capture.output(img<-getFrame(EBImage::readImage(img.fname),1))#capture.output to avoid anoying text
+colorMode(img)<-Grayscale
+
+if(img.width!=dim(img)[1]|img.height!=dim(img)[2]) stop("drawText changed img size")
+
+return(img)
+} 
+
+
 #####################Private Functions#####################################
 
 #pform=pformula
-#side	 an integer specifying which side of the plot the axis is to be drawn on. The axis is placed as follows: 1=below, 2=left, 3=above and 4=right.
-.axis<-function(imgdf,pform,side=1,img.size=41,border=1,font.size=14,font.col="black",bg.col="white",line.col=0
-				,max.nchar=floor(img.size*2/font.size),mex=1.2){
+#side	 an integer specifying which side of the plot the axis is to be drawn on. 
+#The axis is placed as follows: 1=below, 2=left, 3=above and 4=right.
+#To plot de axis, a tiff device is opened in a temp dir, text and lines are called, and the image is loaded to a EBImage Image
+.axis<-function(imgdf,pform,side=1,img.size=41,border=1,font.size=14,max.nchar=floor(img.size*2/font.size),mex=1.2){ #,font.col="black",bg.col="white",line.col=0
 
-	if (side==1){ #bottom axis
-		term=pform$rterm
-		imgdf$img_coord<-imgdf$img_x
-	} else if (side==2){ #left
-		term=pform$lterm
-		imgdf$img_coord<-imgdf$img_y
-	} else if (side==3){ #top
-		term=pform$rterm
-		imgdf$img_coord<-imgdf$img_x
-	} else if (side==4){ #rigth
-		term=pform$lterm
-		imgdf$img_coord<-imgdf$img_y
-	}
+	#create name to uniquely identify label temporary tif file
+	img.fname<-paste("Rcell_axis"
+		,digest::digest(imgdf),digest::digest(pform)
+		,side,img.size,border,font.size,max.nchar,mex
+		,sep="_")
+	img.fname<-paste(tempdir(),"/",img.fname,".tif",sep="")
 
-	if("." %in% term | length(term)==0) { #no axis
-		axis.img<-Image(bg.col,colormode="Grayscale", dim = c((img.size+border)*max_coord+border,1))
-	} else { #plot axis
-		if(!all(c(term,"img_coord") %in% names(imgdf))) stop("some variable in formula not in imgdf")
-		axisdf<-ddply(subset(imgdf,select=c("img_coord",term)),.(img_coord),unique)
-		max_coord=max(imgdf[,"img_coord"])
-		n_term=length(term)
-		axis.img<-Image(bg.col,colormode="Grayscale", dim = c((img.size+border)*max_coord+border,round(n_term*font.size*mex)))
-		axisdf$max_coord<-axisdf[,"img_coord"]
-		axisdf$min_coord<-axisdf[,"img_coord"]
+	if(!file.exists(img.fname)){ #if axis not previously created, create them
 
-		for(i in 1:n_term){
-			if(i>1){
-				axisdf<-
-				ddply(axisdf,term[n_term-i+1],function(df)
-					data.frame(img_coord=mean(df$img_coord),max_coord=max(df$max_coord),min_coord=min(df$min_coord),df[1,term])
-				)
-				xline<-
-				do.call(c,dlply(axisdf,.(img_coord),function(df)
-					seq((df[1,"min_coord"]-1)*(img.size+border)+3*border,df[1,"max_coord"]*(img.size+border)-3*border)
-				))
-				if(side %in% c(2,4)) xline<-rev(dim(axis.img)[1]-xline)
-				ylinepos<-
-				switch(side
-					,round(mex*font.size*(i-1))	 		#side==1
-					,round((n_term-i+1)*mex*font.size)	#side==2
-					,round((n_term-i+1)*mex*font.size)	#side==3
-					,round(mex*font.size*(i-1))	 	)	#side==4
-				axis.img[as.integer(xline),ylinepos]<-line.col
-			}
-
-			lab=as.character(axisdf[,term[n_term-i+1]])
-			if(term[n_term-i+1]=="sample"){ #dealing with "sample" labels
-				pIDs<-ddply(subset(imgdf,select=c("pos","cellID","sample")),.(pos,cellID)
-					,function(df)data.frame(sample=ifelse(length(unique(df$sample))==1,unique(df$sample),NA)))
-				pIDs<-transform(pIDs,lab=as.character(interaction(pIDs$pos,pIDs$cellID))) 
-				dtsl<-dim(table(pIDs$sample,pIDs$lab))
-				if(any(is.na(pIDs[,3]))|(dtsl[2]>dtsl[1])){ #not unique mapping between sample number and pos.cellID
-					lab=rep(".",times=length(lab)) #using dots
-				}else { #unique mapping #using pos.cellID
-					lab=join(axisdf,pIDs,by="sample")$lab
-				}
-			}
-			lab=substr(lab,1,max.nchar)
-			
-			ylabelpos<-	switch(side
-				,round((1+(i-1)*mex)*font.size)		#side==1
-				,round((n_term-i+2-mex)*mex*font.size)	#side==2
-				,round((n_term-i+2-mex)*mex*font.size)	#side==3
-				,round((1+(i-1)*mex)*font.size)	)	#side==4
-			xlabelpos<-	switch(side
-				,(axisdf$img_coord-0.5)*(img.size+border) - nchar(lab)*floor(font.size/4) 				#side==1
-				,(max_coord-axisdf$img_coord+0.5)*(img.size+border) - nchar(lab)*floor(font.size/4)		#side==2
-				,(axisdf$img_coord-0.5)*(img.size+border) - nchar(lab)*floor(font.size/4) 				#side==3
-				,(max_coord-axisdf$img_coord+0.5)*(img.size+border) - nchar(lab)*floor(font.size/4)	)	#side==4
-
-			axis.img<-
-			drawtext(axis.img
-				,xy=as.matrix(data.frame(xlabelpos,ylabelpos))
-				,labels=lab
-				,font=drawfont(size=font.size)
-				,col=font.col)
+		if (side==1){ #bottom axis
+			term=pform$rterm
+			imgdf$img_coord<-imgdf$img_x
+		} else if (side==2){ #left
+			term=pform$lterm
+			imgdf$img_coord<-imgdf$img_y
+		} else if (side==3){ #top
+			term=pform$rterm
+			imgdf$img_coord<-imgdf$img_x
+		} else if (side==4){ #rigth
+			term=pform$lterm
+			imgdf$img_coord<-imgdf$img_y
 		}
-	}
-	if(side %in% c(2,4)) axis.img<-rotate(axis.img, angle=(-90))
+
+		max_coord <- max(imgdf[,"img_coord"])
+		axis.img.label.x<-c()
+		axis.img.label.y<-c()
+		axis.img.label.text<-c()
+		axis.img.line.x<-c()
+		axis.img.line.y<-c()
+
+		if("." %in% term | length(term)==0) { #no axis
+			axis.img.dim<-c((img.size+border)*max_coord+border,1)
+			# axis.img<-Image(bg.col,colormode="Grayscale", dim = axis.img.dim) #draw on EBImage 
+		} else { #plot axis
+			if(!all(c(term,"img_coord") %in% names(imgdf))) stop("some variable in formula not in imgdf")
+			axisdf <- ddply(subset(imgdf,select=c("img_coord",term)),.(img_coord),unique)
+			n_term <- length(term)
+			axis.img.dim<-c((img.size+border)*max_coord+border,round(n_term*font.size*mex))
+			# axis.img <- Image(bg.col,colormode="Grayscale", dim = axis.img.dim) #draw on EBImage 
+			axisdf$max_coord <- axisdf[,"img_coord"]
+			axisdf$min_coord <- axisdf[,"img_coord"]
+
+			for(i in 1:n_term){
+				if(i>1){
+					axisdf<-
+					ddply(axisdf,term[1:(n_term-i+1)],function(df)
+						data.frame(img_coord=mean(df$img_coord),min_coord=min(df$min_coord),max_coord=max(df$max_coord),df[1,term[i:n_term]])
+					)
+					# xline<- #draw on EBImage 
+					# do.call(c,dlply(axisdf,.(img_coord),function(df)
+						# seq((df[1,"min_coord"]-1)*(img.size+border)+3*border,df[1,"max_coord"]*(img.size+border)-3*border)
+					# ))
+					# if(side %in% c(2,4)) xline<-rev(dim(axis.img)[1]-xline) #draw on EBImage 
+
+					axis.img.line.x<-c(axis.img.line.x, #draw on device 
+						do.call(c,dlply(axisdf,.(img_coord),function(df)
+							c((df[1,"min_coord"]-1)*(img.size+border)+3*border,df[1,"max_coord"]*(img.size+border)-3*border,NA)
+						)))
+
+					ylinepos<-
+					switch(side
+						,round(mex*font.size*(i-1))	 		#side==1
+						,round((n_term-i+1)*mex*font.size)	#side==2
+						,round((n_term-i+1)*mex*font.size)	#side==3
+						,round(mex*font.size*(i-1))	 	)	#side==4
+
+					axis.img.line.y<-c(axis.img.line.y, #draw on device
+						do.call(c,dlply(axisdf,.(img_coord),function(df)
+							c(ylinepos,ylinepos,NA)
+						)))
+
+					#axis.img[as.integer(xline),ylinepos]<-line.col #draw on EBImage 
+				}
+
+				lab=as.character(axisdf[,term[n_term-i+1]])
+				if(term[n_term-i+1]=="sample"){ #dealing with "sample" labels
+					if(all(c("pos","cellID","sample")%in%names(df))){ #pos and cellID columns in imgdf
+						pIDs<-ddply(subset(imgdf,select=c("pos","cellID","sample")),.(pos,cellID)
+							,function(df)data.frame(sample=ifelse(length(unique(df$sample))==1,unique(df$sample),NA)))
+						pIDs<-transform(pIDs,lab=as.character(interaction(pIDs$pos,pIDs$cellID))) 
+						dtsl<-dim(table(pIDs$sample,pIDs$lab))
+						if(any(is.na(pIDs[,3]))|(dtsl[2]>dtsl[1])){ #not unique mapping between sample number and pos.cellID
+							lab=rep(".",times=length(lab)) #using dots
+						}else { #unique mapping #using pos.cellID
+							lab=join(axisdf,pIDs,by="sample")$lab
+						}
+					} else { #NO pos and cellID columns
+						lab=rep(".",times=length(lab)) #using dots
+					}
+				}
+				lab=substr(lab,1,max.nchar)  #allow more flixbility here
+				
+				ylabelpos<-	switch(side
+					,round((1+(i-1)*mex)*font.size)		#side==1
+					,round((n_term-i+2-mex)*mex*font.size)	#side==2
+					,round((n_term-i+2-mex)*mex*font.size)	#side==3
+					,round((1+(i-1)*mex)*font.size)	)	#side==4
+				xlabelpos<-	switch(side
+					,(axisdf$img_coord-0.5)*(img.size+border) - nchar(lab)*floor(font.size/4) 				#side==1
+					,(max_coord-axisdf$img_coord+0.5)*(img.size+border) - nchar(lab)*floor(font.size/4)		#side==2
+					,(axisdf$img_coord-0.5)*(img.size+border) - nchar(lab)*floor(font.size/4) 				#side==3
+					,(max_coord-axisdf$img_coord+0.5)*(img.size+border) - nchar(lab)*floor(font.size/4)	)	#side==4
+
+				axis.img.label.x<-c(axis.img.label.x,xlabelpos) #draw on device 
+				axis.img.label.y<-c(axis.img.label.y,rep(ylabelpos,times=length(xlabelpos))) #draw on device 
+				axis.img.label.text<-c(axis.img.label.text,lab) #draw on device
+				
+				# axis.img<-drawText(axis.img,labels=lab,x=xlabelpos,y=ylabelpos) #draw on EBImage 
+
+			}
+		}
+	
+		#drawing on device
+		#create device 
+		tiff(filename = img.fname,
+			width = axis.img.dim[1], height = axis.img.dim[2], units = "px", pointsize = 12,
+			bg = "white", family = "")	
+
+			#change graphical parameters
+			op<-par(mar=c(0,0,0,0),oma=c(0,0,0,0),xaxs="i",yaxs="i")
+			on.exit(par(op))
+
+			#new plot
+			plot.new()
+
+			#add text to device
+			text((axis.img.label.x-1)/(axis.img.dim[1]-1),1-(axis.img.label.y-1)/(axis.img.dim[2]-1),axis.img.label.text,adj=c(0,0))
+
+			#add lines to device
+			if(side==1){
+				lines((axis.img.line.x-1)/(axis.img.dim[1]-1),1-(axis.img.line.y-1)/(axis.img.dim[2]-1))
+			}else if(side==2){	
+				lines(1-(axis.img.line.x-1)/(axis.img.dim[1]-1),1-(axis.img.line.y-1)/(axis.img.dim[2]-1))
+			}
+
+		#close device
+		dev.off()
+	}	
+
+	#open image and change colorMode 
+	capture.output(axis.img<-getFrame(EBImage::readImage(img.fname),1))#capture.output to avoid anoying text
+	colorMode(axis.img)<-Grayscale
+	
+
+	if(side %in% c(2,4)) axis.img<-EBImage::rotate(axis.img,filter="none",angle=(-90) 
+											,output.dim=rev(dim(axis.img))
+											,output.origin=c(0,dim(axis.img)[1]-dim(axis.img)[2]-1))
 	return(axis.img)
 
 }
 
-.append.panel.idxy<-function(imgdf,pform,var.prefix="panel_",nx=NULL,ny=NULL,rev.y=TRUE){
+
+
+.append.panel.idxyz<-function(imgdf,pform,var.prefix="panel_",nx=NULL,ny=NULL,rev.y=TRUE){
 	if(pform$type=="none"){
 		tmp<-summarise(imgdf,facet_id=factor(1),facet_x=1,facet_y=1)
 		names(tmp)<-paste(var.prefix,c("id","x","y"),sep="")
@@ -819,8 +971,21 @@ drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1)
 		imgdf<-cbind(imgdf,
 			.grid(imgdf,pform$lterm,pform$rterm,var.prefix=var.prefix,rev.y=rev.y))
 	} else stop("unknown formula type")
+
+	if(var.prefix=="img_") return(imgdf)
+
+	#dealing with slice (z) term
+	if(length(pform$sterm)>0){ #multi layer image
+		imgdf$facet_z <- as.numeric(.ordered.interaction(subset(imgdf,select=pform$sterm)))
+		imgdf$facet_id <- .ordered.interaction(subset(imgdf,select=c(facet_z,facet_id)))
+	} else { #single layer image
+		imgdf<-transform(imgdf,facet_z=1)
+	}
+
 	return(imgdf)
 }
+
+
 
 .grid <- function(df,lterm,rterm,var.prefix="panel_",rev.y=TRUE){
 
@@ -893,29 +1058,56 @@ drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1)
 	return(df)
 }
 
-#ToDo: manege more than 2 terms in sums
-.parse.formula <- function(formula){
-	if(length(formula)==3){
-		lterm=all.vars(formula[[2]])
-		rterm=all.vars(formula[[3]])
-	} else if(length(formula)==2){
-		lterm="."
-		rterm=all.vars(formula[[2]])
-	} else stop("incorrect formula")
-	
+.parse.formula <- function(formula,force.valid.names=FALSE){
+   
+	if (length(formula) == 3) { # right and left term
+        lterm <- .parseSide(formula[[2]])
+    } else if(length(formula) == 2) { #only right term
+        lterm <- "."
+    }
+
+    rterm <- formula[[length(formula)]]
+    if (length(rterm) == 3 && rterm[[1]] == as.name("|")){ #slice term
+		sterm <- .parseSide(rterm[[3]])
+        rterm <- .parseSide(rterm[[2]])
+	} else { #no slice term
+		sterm <- c()
+	    rterm <- .parseSide(rterm)
+	}
+
+	#checking that "." is not used with other vars
 	if(length(lterm)>1&is.element(".",lterm)) stop("left term of formula has . and other variables")
 	if(length(rterm)>1&is.element(".",rterm)) stop("right term of formula has . and other variables")
+	if(is.element(".",sterm)) stop("dot not allowed in slice term")
 
+	#dealing with "sample" synomins
 	lterm[lterm%in%c("...","cell","cells")]<-"sample"
 	rterm[rterm%in%c("...","cell","cells")]<-"sample"
+	sterm[sterm%in%c("...","cell","cells")]<-"sample"
 	
 	if("."%in%lterm&"."%in%rterm)type="none"
 	else if("."%in%lterm) 	 type="wrap_horizontal"
 	else if("."%in%rterm) 	 type="wrap_vertical"
 	else 					 type="grid"
 
-	return(list(lterm=lterm,rterm=rterm,type=type))
+	pform <- list(lterm=lterm,rterm=rterm,sterm=sterm,type=type)
+	
+	if(isTRUE(force.valid.names)) 
+		pform <- lapply(pform,make.names)
+
+	return(pform)
 }
+
+#auxiliary functions for .parse.formula
+.parseSide <- function(model) {
+	model.vars <- list()
+	while (length(model) == 3 && model[[1]] == as.name("+")) {
+		model.vars <- c(model.vars, model[[3]])
+		model <- model[[2]]
+	}
+	return(sapply(rev(c(model.vars, model)),.expr2char))
+}
+.expr2char <- function(x) paste(deparse(x), collapse = "")
 
 ###code adapted from check_formula (reshape package) from Hadley Wickham 
 # Check formula

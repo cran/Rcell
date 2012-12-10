@@ -1,4 +1,4 @@
-export(load.cellID.data,load.cell.data)
+export(load.cellID.data,load.cell.data,load.cellX.data)
 export(is.cell.data)
 
 export(as.cell.data)
@@ -50,8 +50,7 @@ export(caxis, zoom, xzoom, yzoom)
 export(vplayout)
 
 importFrom(utils,modifyList)
-export(theme_minimal, theme_minimal_cb, theme_minimal_cb_L, theme_minimal_light)
-export(theme_fullframe, theme_black, theme_complete_bw, theme_invisible)
+export(theme_Rcell, theme_invisible)
 export(StatSummaryGroup, StatBootstrap, StatInteractionError)
 export(stat_summaryGroup, stat_bootstrap, stat_interactionError)
 
@@ -62,7 +61,7 @@ export(append.anular.y,append.anular.c,append.anular.r)
 export(append.oif.time,append.oif.interval)
 export(cardinality.plot,map.cells.points)
 
-export(paste_data_error,paste_parameter,paste_intercept_slope,paste_EC50_n)
+export(paste_data_error,paste_parameter,paste_intercept_slope,paste_EC50_n,revFactor)
 
 export(cimage,get.cell.image,is.cell.image,img.desc,show.img,show.image)
 S3method(cimage, cell.data)

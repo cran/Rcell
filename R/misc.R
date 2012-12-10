@@ -54,3 +54,4 @@ paste_EC50_n <- function(fit,leading.str="",error.signif=2){
 	,sep="")
 }
 
+revFactor <- function(x)factor(x, levels = rev(levels(x)),ordered=TRUE)

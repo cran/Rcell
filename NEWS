@@ -1,3 +1,18 @@
+Version 1.2-3
+* Rcell now depends on EBImage>=4.0.0
+* merge.cell.data can now join to cell.data objects together
+
+Version 1.2-2
+* cimage can now make movies (multi layer images) 
+* cimage handles correctly more that two factors per term
+* cimage handles expressions in formulas (cut, revFactor)
+* debuged cimage facets
+* Rcell now suggests on EBImage>=4.0.0
+
+Version 1.2-1
+* Full compatibility with ggplot2 version 0.9.2
+* new function load.cellX.data (experimental)
+
 Version 1.2-0 (Release for Current Protocols in Molecular Biology unit 14.18, 2012)
 * WARNING: update.n.tot and transform.by were renamed to update_n.tot and transformBy
 * New stats for ggplot2 stat_summaryGroup, stat_bootstrap, stat_interactionError

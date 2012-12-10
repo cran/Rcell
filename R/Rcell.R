@@ -10,12 +10,7 @@
 
 #Strong dependence on ggplot2 package
 .onAttach <- function(lib, pkg, ...) {
-	#dealing with ggplot2 version
-	if (as.numeric_version(utils::packageVersion("ggplot2"))< as.numeric_version("0.9.2")) {
-		theme_set(Rcell::theme_minimal_cb())
-	} else {
-		theme_set(ggplot2::theme_bw())
-	}
+		theme_set(Rcell::theme_Rcell())
 }
 
 #*************************************************************************#
@@ -319,6 +314,71 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 load.cell.data<-load.cellID.data
 
 #*************************************************************************#
+#public
+#loads a cellX output to a cell.data object
+load.cellX.data <- function(pattern=glob2rx("Position*.txt"),path=getwd()){
+
+	#identifying files to load based on patter and path
+	file.names<-dir(pattern=pattern, path=path)	
+	if(length(file.names)==0) stop("no file with the specified pattern in ", path)
+	pos.db<-data.frame(fname=file.names,path=path)
+	
+	#using numeric part of filename as pos
+	pos.db<-transform(pos.db,pos=gsub("[[:punct:]]","",gsub("[[:alpha:]]","",fname)))
+	pos.db$pos<-as.numeric(pos.db$pos)
+
+	#reading tables
+	pos.data<-dlply(pos.db,.(pos),function(df) read.delim(paste(df$path,df$fname,sep="/")))
+
+	#checking that all tables have the same variables 
+	all.vars<-unique(do.call(c,lapply(pos.data,names)))
+	missing.vars<-lapply(lapply(pos.data,names),function(x)setdiff(x,all.vars))
+	if(any(sapply(missing.vars,length)>0)) stop("tables with different vars")
+
+	#merging tables and creating "pos" variable
+	data<-ldply(pos.data)
+
+	#renaming "id" variables to Rcell standard
+	data<-rename(data,c("track.index"="cellID","cell.frame"="t.frame"))
+
+	#creating Unique Cell ID var 
+	data<-transform(data,ucid=1e6*pos+cellID)
+
+	#defining variable for Quality Control filtering
+	data$QC<-TRUE	
+
+	#defining variable groups to use as "keywords"
+	variables<-list(id.vars=c("pos","t.frame","cellID","ucid")
+				   ,QC="QC"
+				   ,as.factor=c("pos","cellID","ucid")
+				   ,all=names(data))	
+	variables$track<-grep(glob2rx("track*"),variables$all,value=TRUE)
+	variables$morpho<-grep(glob2rx("cell*"),variables$all,value=TRUE)
+	variables$fluor<-setdiff(variables$all,c(variables$morpho,variables$track,variables$id.vars,variables$QC))
+	
+	#identifyingchannel names from variable names
+	channels<-unique(ldply(variables$fluor,function(x)strsplit(x,split=".",fixed = TRUE)[[1]][[1]])[[1]])
+	channels=data.frame(prefix=channels,name=channels,stringsAsFactors=FALSE)
+
+	#creating cell.data object to return
+	cell.data<-
+		list(data=data
+			,QC.history=list()
+			,subset.history=list()
+			,transform=list()
+			,channels=channels
+			,variables=variables
+			,images=NULL
+			,software="CellX"
+			,load.date=date()
+        )
+	class(cell.data)<-c("cell.data","list")
+
+	print(summary(cell.data))
+	return(cell.data)
+}
+
+#*************************************************************************#
 #generic
 #Creates the generic function as.cell.data
 as.cell.data <- function(X,...) UseMethod("as.cell.data")
@@ -405,80 +465,127 @@ as.cell.data.default <- as.cell.data.list
 #*************************************************************************#
 #public
 #merges a cellID dataset and a data.frame together
-#ToDo: merge 2 cell.data together
-merge.cell.data<-function(x,y,by=NULL,na.rm=FALSE,add=FALSE,warn=TRUE,...){
+merge.cell.data<-function(x,y,by=NULL,na.rm=FALSE,add=FALSE,warn=TRUE,pos.offset=NULL,...){
 	on.exit(gc())
 	gc()
 	join.by=by
-	#browser()
-	if(!is.data.frame(y)) stop("y should be of class data.frame\n")
 	
-	if(is.null(join.by)){
-		join.by=intersect(x$variables$id.vars,names(y))
-		if(length(join.by)==0) join.by=intersect(x$variables$merged.by,names(y))
-		if(length(join.by)==0) join.by=intersect(x$variables$all,names(y))
-		if(length(join.by)==0) stop("no suitable variable to merge the datasets\n")
-	} else if(length(setdiff(join.by,intersect(x$variables$all,names(y))))>0) 
-		stop(toString(join.by),"are unsuitable variables to merge the datasets\n")
-
-	cat("merging by",toString(join.by),"\n")
-
-	#elimino las variables de y en x$data si es que existen. Esto pasa cuando cargo varias veces el y	
-	merged.vars=setdiff(names(y),join.by)
-	if(length(merged.vars)==0) stop("using all variables to merge by, no variables left to add to the dataset")
-	rm.vars=intersect(names(x$data),merged.vars)
-	if(isTRUE(add)){
-		if(length(rm.vars)==0){
-			if(isTRUE(warn)) warning("add=TRUE, but merging",paste(merged.vars,collapse=", ")," for the first time")
-			add=FALSE
-		} else {
-			old.db<-subset(x$data,select=rm.vars)
+	if(is.cell.data(y)){ ###  merging cell.data to cell.data	###
+		message("merging two cell.data objects together (adding new pos)")
+		###data
+		#checking that the variables are the same
+		xy.vars=intersect(names(x$data),names(y$data))
+		x.vars.not.in.y=setdiff(names(x$data),xy.vars)
+		y.vars.not.in.x=setdiff(names(y$data),xy.vars)
+		if(length(x.vars.not.in.y)>0) {
+			message(toString(x.vars.not.in.y), " variable(s) in x but not in y. Adding NAs to y.")
+			y$data[,x.vars.not.in.y]<-as.numeric(NA)
 		}
-	}
-	for(i in rm.vars) x$data[,i]<-NULL
-	
-	
-	#agrego las variables a x$variables
-	x$variables$merged=unique(c(x$variables$merged,merged.vars))
-	x$variables$merged.by=union(x$variables$merged.by,join.by)
-	x$variables$all=union(x$variables$all,merged.vars)
-
-	#checking for repeted combinations of join.by variables in y
-	agg=aggregate(subset(y,select=merged.vars[1]),as.list(subset(y,select=join.by)),FUN=length)
-	agg=subset(agg,agg[,merged.vars[1]]>1,select=join.by)
-	if(dim(agg)[1]>0){
-		print(agg,row.names = FALSE)
-		stop("The above registers occur more than once in the dataset you are trying to merge",call.=FALSE)
-	}
-
-	tmp<-subset(x$data,select=c(join.by))
-	join.by.NA.sum<-sum(is.na(tmp))
-	if(join.by.NA.sum>0){ #dealing with NAs in join variables
-		if(!na.rm) stop(join.by.NA.sum," NAs found in merging variables. To proceed removing these registers use na.rm=T")
-		if(isTRUE(add)) stop("na.rm and add are not compatible arguments")
-		if(isTRUE(warn)) warning(join.by.NA.sum," registers with NAs in merging variables eliminated")
-		x$data<-join(x$data,y,by=join.by,type="left")
-	} else { #no NAs, working for performance	
-		tmp<-join(tmp,y,by=join.by,type="left")
-		tmp<-subset(tmp,select=setdiff(names(tmp),join.by))
-		for(i in names(tmp)){
-			gc()
-			x$data[[i]]<-tmp[[i]]
+		if(length(y.vars.not.in.x)>0) {
+			message(toString(y.vars.not.in.x), " variable(s) in y but not in x. Adding NAs to x.")
+			x$data[,y.vars.not.in.x]<-as.numeric(NA)
 		}
-		gc()
+		y$data<-y$data[,names(x$data)]	#sorting y columns according to x 
+
+		if(is.null(pos.offset))	pos.offset <- max(x$data$pos)
+		message("offseting y pos by ",pos.offset)
+		y$data$pos <- y$data$pos + pos.offset
+		y$data$ucid <- y$data$ucid + pos.offset*1e6
+
+		x$data<-rbind(x$data,y$data)
+
+		###images
+		y$images$pos <- y$images$pos + pos.offset
+		x$images<-rbind(x$images,y$images)
+
+		x$channels <- rbind(x$channels,y$channels)
+
+		variables=list()
+		for(i in union(names(x$variables),names(y$variables))){
+			variables[[i]]<-union(x$variables[[i]],y$variables[[i]])
+		}
+		x$variables <- variables
 		
-		#adding previous for NAs in new variable
+
+		x$QC.history=list()
+		x$subset.history=list()
+		x$transform=list()
+		x$software<-union(x$software,y$software)
+		x$load.date=c(x$load.date,y$load.date)
+
+		return(x)
+
+	}else if(is.data.frame(y)){ ###  merging data.frame to cell.data  ###
+		message("merging data.frame to cell.data (adding new vars)")
+		if(is.null(join.by)){
+			join.by=intersect(x$variables$id.vars,names(y))
+			if(length(join.by)==0) join.by=intersect(x$variables$merged.by,names(y))
+			if(length(join.by)==0) join.by=intersect(x$variables$all,names(y))
+			if(length(join.by)==0) stop("no suitable variable to merge the datasets\n")
+		} else if(length(setdiff(join.by,intersect(x$variables$all,names(y))))>0) 
+			stop(toString(join.by),"are unsuitable variables to merge the datasets\n")
+
+		cat("merging by",toString(join.by),"\n")
+
+		#elimino las variables de y en x$data si es que existen. Esto pasa cuando cargo varias veces el y	
+		merged.vars=setdiff(names(y),join.by)
+		if(length(merged.vars)==0) stop("using all variables to merge by, no variables left to add to the dataset")
+		rm.vars=intersect(names(x$data),merged.vars)
 		if(isTRUE(add)){
-			for(i in names(old.db)){
-				x$data[[i]]<-ifelse(is.na(x$data[[i]]),old.db[[i]],x$data[[i]])
+			if(length(rm.vars)==0){
+				if(isTRUE(warn)) warning("add=TRUE, but merging",paste(merged.vars,collapse=", ")," for the first time")
+				add=FALSE
+			} else {
+				old.db<-subset(x$data,select=rm.vars)
 			}
 		}
-	
-	}
+		for(i in rm.vars) x$data[,i]<-NULL
 		
-	.print.merged.vars(.format.merged.vars(x,merged.vars=merged.vars),description="merged vars")
-	
-	return(x)
+		
+		#agrego las variables a x$variables
+		x$variables$merged=unique(c(x$variables$merged,merged.vars))
+		x$variables$merged.by=union(x$variables$merged.by,join.by)
+		x$variables$all=union(x$variables$all,merged.vars)
+
+		#checking for repeted combinations of join.by variables in y
+		agg=aggregate(subset(y,select=merged.vars[1]),as.list(subset(y,select=join.by)),FUN=length)
+		agg=subset(agg,agg[,merged.vars[1]]>1,select=join.by)
+		if(dim(agg)[1]>0){
+			print(agg,row.names = FALSE)
+			stop("The above registers occur more than once in the dataset you are trying to merge",call.=FALSE)
+		}
+
+		tmp<-subset(x$data,select=c(join.by))
+		join.by.NA.sum<-sum(is.na(tmp))
+		if(join.by.NA.sum>0){ #dealing with NAs in join variables
+			if(!na.rm) stop(join.by.NA.sum," NAs found in merging variables. To proceed removing these registers use na.rm=T")
+			if(isTRUE(add)) stop("na.rm and add are not compatible arguments")
+			if(isTRUE(warn)) warning(join.by.NA.sum," registers with NAs in merging variables eliminated")
+			x$data<-plyr::join(x$data,y,by=join.by,type="left")
+		} else { #no NAs, working for performance	
+			tmp<-plyr::join(tmp,y,by=join.by,type="left")
+			tmp<-subset(tmp,select=setdiff(names(tmp),join.by))
+			for(i in names(tmp)){
+				gc()
+				x$data[[i]]<-tmp[[i]]
+			}
+			gc()
+			
+			#adding previous for NAs in new variable
+			if(isTRUE(add)){
+				for(i in names(old.db)){
+					x$data[[i]]<-ifelse(is.na(x$data[[i]]),old.db[[i]],x$data[[i]])
+				}
+			}
+		
+		}
+			
+		.print.merged.vars(.format.merged.vars(x,merged.vars=merged.vars),description="merged vars")
+		
+		return(x)
+	} else {
+		stop("y should be of class data.frame or cell.data\n")
+	}
 }
 
 #*************************************************************************#
@@ -738,7 +845,11 @@ cdata <- function(x,subset=TRUE,select=NULL,exclude=NULL,QC.filter=TRUE,na.rm=TR
 	select.vars<- .select(x$variables,select,exclude)
 	if(isTRUE(select.vars)) select.vars<-names(data)
 	data<-data[eval(subset,data),select.vars]
-	if(isTRUE(na.rm)) data<-na.omit(data)
+	if(isTRUE(na.rm)){
+		na.values<-sum(is.na(data))
+		if(na.values>0) warning("Removing ",na.values," registers with NAs!")
+		data<-na.omit(data)
+	}
 	return(data)
 }
 "[[.cell.data" <- cdata
@@ -927,7 +1038,15 @@ print.summary.cell.data<-function(x,...){
 	cat("\n")
 	.print.var.names(x$fluor.ch.vars,"channel specific fluorescence vars*")
 	cat("\n")	
-	cat("  *append channel postfix (",toString(paste(".",x$channels$posfix,sep="")),") to obtain variable name\n",sep="")
+
+	if("posfix"%in%names(x$channels)){
+		cat("  *append channel postfix (",toString(paste(".",x$channels$posfix,sep="")),") to obtain variable name\n",sep="")
+	} else if ("prefix"%in%names(x$channels)){
+		cat("  *append channel prefix (",toString(paste(x$channels$prefix,".",sep="")),") to obtain variable name\n",sep="")
+	} else {
+		cat("  *append channel name (",toString(x$channels$name),") to obtain full variable name\n",sep="")
+	}
+	
 	if(length(x$transform)>0){	
 		cat("transformed vars:\n")
 		for(i in names(x$transform))
@@ -983,11 +1102,26 @@ summary.cell.data <-function(object,...){
 	summary$time.frames=unique(object$data$t.frame)
 	
 	summary$id.vars=object$variables$id.vars
-	summary$morpho.vars=.select(object$variables,select="morpho",exclude=paste("*.",object$channels$posfix,sep=""))
+	if("posfix"%in%names(object$channels)){
+		summary$morpho.vars=.select(object$variables,select="morpho",exclude=paste("*.",object$channels$posfix,sep=""))
+	}else {
+		summary$morpho.vars=object$variables$morpho
+	}
+
 	mcv=.select(object$variables,select="morpho",exclude=summary$morpho.vars)
-	summary$morpho.ch.vars=unique(substr(mcv,1,nchar(mcv)-2))
 	fcv=.select(object$variables,select="fluor")
-	summary$fluor.ch.vars=unique(substr(fcv,1,nchar(fcv)-2))
+	
+	if(object$software=="Cell-ID"){
+		summary$morpho.ch.vars=unique(substr(mcv,1,nchar(mcv)-2))
+		summary$fluor.ch.vars=unique(substr(fcv,1,nchar(fcv)-2))
+	} else if (object$software=="CellX"){
+		summary$morpho.ch.vars=unique(substr(mcv,5,nchar(mcv)))
+		summary$fluor.ch.vars=unique(substr(fcv,5,nchar(fcv)))
+	} else {
+		summary$morpho.ch.vars=unique(mcv)
+		summary$fluor.ch.vars=unique(fcv)
+	}
+
 	summary$transformed.vars=object$variables$transformed
 	summary$merged.vars=.format.merged.vars(object,object$variables$merged)
 	summary$select.keywords=names(object$variables)

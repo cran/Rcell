@@ -2,7 +2,6 @@
 #public
 #herarchical clustering of cell data and heatmap plot
 #ToDo: use flashClust when available
-#ToDo: use dynamicTreecut functions for tree cutting
 #ToDo: provide an as.hclust and as.dist method?
 #ToDo: add a RowSideColors argument
 #ToDo: add labRow argument. Use variable name to create correct strign vector.
@@ -12,7 +11,7 @@ cell.hclust <- function(X,select
 				,plot="heatmap",main=NULL
 				,heatmap.col=colorRampPalette(c("green", "black", "red"), space="rgb",bias=2)(128)
 				,cutree="none",cutree.args=list(h=0.5),plot.dendrogram=cutree%in%c("height","cluster","clusters")
-				,min.cluster.size=20
+				,min.cluster.size=20,na.rm=FALSE
 				,formula=ucid ~ variable + t.frame
 				,subset=TRUE,exclude=NULL,QC.filter=TRUE
 				,col.select=NULL,col.exclude=NULL
@@ -28,8 +27,7 @@ cell.hclust <- function(X,select
 	args[[1]]<-NULL
 	args$data<-args$X
 	args$X<-NULL
-	rd=do.call("creshape",c(args,form[setdiff(names(form)
-				,c(names(args),non.creshape.args))]))			
+	rd=do.call("creshape",c(args,form[setdiff(names(form),c(names(args),non.creshape.args))]))			
 
 	rd<-colwise(as.numeric)(rd)
 	#check if 1st term of formula is ucid

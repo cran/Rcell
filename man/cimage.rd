@@ -15,7 +15,7 @@ cimage(X,...)
 \method{cimage}{cell.data}(X,formula=NULL,facets=NULL,time.var=c('*time*','t.frame','z.scan','z.slice')
   ,time.course=NULL,select=NULL,exclude=NULL,normalize.group='channel',...)
 
-\method{cimage}{cell.image}(X,formula=NULL,facets=NULL,scales='fixed'
+\method{cimage}{cell.image}(X,formula=NULL,facets=NULL,scales='fixed',allow.expressions=FALSE
   ,nx=NULL,ny=NULL,facets.nx=NULL,facets.ny=NULL
   ,bg.col='white',border=1,facets.border=1,rev.y=TRUE
   ,font.size=14,font.col='black',display=interactive(),...)
@@ -34,6 +34,7 @@ cimage(X,...)
   \item{exclude}{character vector defining variable names to be excluded}
   \item{normalize.group}{variable names that define groups of images that should be normalized together}
   \item{scales}{either 'none', 'fixed' or 'free' axis for each facet}
+  \item{allow.expressions}{allow expressions in formulas, set to TRUE when called from cimage.cell.data}
   \item{nx}{number of columns of images within each facet. Used with \code{formula} '~var1' or 'var1~.'}
   \item{ny}{number of rows of images within each facet. Used with \code{formulas} '~var1' or 'var1~.'}
   \item{facets.nx}{number of columns of facets. Used with \code{facets} '~var1' or 'var1~.'}
@@ -94,6 +95,10 @@ if(interactive()&require(EBImage,quietly=TRUE)){
 	#select one BF and many YFP images
 	cimage(X,...~channel+t.frame,subset=pos==29,N=3,
 		channel.subset=channel=='YFP'|(channel=='BF.out'&t.frame==11))
+
+	#make a movie!		
+	cimage(X,.~cell|t.frame,subset=pos==29,channel='YFP',N=9)
+		
 }
 
 }
