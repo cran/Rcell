@@ -91,7 +91,7 @@ clayermedian(...,geom=c("point","errorbar","line"))
 }
   clayer is a wrapper for cplot with \code{layer}=TRUE. This function returns a layer that can be added to other ggplot objects with the '+' operator.
   
-  cplotmeans (alias cplotmean) is a wrapper over cplot with \code{stat}='summary' and \code{fun.data}='mean_cl_normal'. This function plots the mean and confidence limits for the mean of the data, grouped by levels of the x variable. The default confidence interval is of 95\%, and can be modified with the \code{conf.int} argument (passed to \code{\link{smean.cl.normal}}).
+  cplotmeans (alias cplotmean) is a wrapper over cplot with \code{stat}='summary' and \code{fun.data}='mean_cl_normal'. This function plots the mean and confidence limits for the mean of the data, grouped by levels of the x variable. The default confidence interval is of 95\%, and can be modified with the \code{conf.int} argument (passed to \code{smean.cl.normal}).
   
   clayermeans (alias clayermean) is a wrapper over cplot with \code{stat}='summary', \code{fun.data}='mean_cl_normal' and  \code{layer}=TRUE. 
 
@@ -117,13 +117,7 @@ data(ACL394)
 #plotting YFP vs CFP fluorescence
 cplot(X,f.tot.y~f.tot.c)
 
-#reduce point size (and alpha blending) to eliminating overplotting
-cplot(X,f.tot.y~f.tot.c,size=0.5) #add alpha=0.3 for 30% transparency
-
-#subset the data before plotting
-cplot(X,f.tot.y~f.tot.c,subset=t.frame==13)
-
-#color by pos variable
+#subset the data before plotting and color by pos variable
 cplot(X,f.tot.y~f.tot.c,subset=t.frame==13,color=pos)
 
 #map the size aesthetic to the the cell area a.tot
@@ -148,9 +142,6 @@ cplotmean(X,f.tot.y~t.frame,color=AF.nM,as.factor="AF.nM",yzoom=c(0,6.2e6))
 
 #plotting histograms
 cplot(X,~f.tot.y)
-
-#map fill aesthetic to AF.nM variable coerced as factor
-cplot(X,~f.tot.y,fill=AF.nM,as.factor="AF.nM")
 
 #use position 'dodge' instead of 'stack'
 cplot(X,~f.tot.y,fill=AF.nM,as.factor="AF.nM",position="dodge")

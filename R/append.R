@@ -1,4 +1,99 @@
 
+append.cor.prj<-function(X,.by,order.var,select,pattern,center=ceiling(length(pattern)/2),subset=TRUE,QC.filter=TRUE
+			,correlation.prefix="cor.",projection.prefix="prj."){
+
+	subset=substitute(subset)
+	on.exit(gc())
+
+	#selecting variables
+	select<-.select(X$variables,select) #retrieving names of selected variables
+	select.vars<-unique(c("ucid","t.frame",select,order.var,names(.by))) #adding names of id.vars and splitting vars
+
+	#getting the data
+	if(QC.filter && class(X$data$QC)=="logical")
+		data<-X$data[X$data$QC,]
+	else
+		data<-X$data
+
+	data<-data[eval(subset,data),select.vars]
+
+	#creating the pattern matrix
+	mpdim<-length(unique(data[,order.var]))
+	mp<-matrix(0,mpdim,mpdim)
+	for(i in 1:mpdim) mp[max(1,i-center+1):min(mpdim,i+center-1),i]<-pattern[max(1,center-i+1):min(length(pattern),mpdim-i+center)]
+	norm2<-function(x)sqrt(sum(x^2))
+	mp.norm<-apply(mp,2,norm2)*(norm2(pattern)/pattern[center])
+
+	#creating correlation and projection variable names
+	cor.prj.var.names<-paste0(rep(c(correlation.prefix,projection.prefix),each=length(select)),rep(select,2))
+
+	#calculate correlation and projectio of a single element
+	cor.prj.df<-function(df){
+		df<-df[order(df[,order.var]),]
+		m<-as.matrix(df[,select])
+		dm1<-dim(m)[1]
+		db<-as.data.frame(cbind(
+			t(cor(m,mp[1:dm1,1:dm1]))
+			,t(t(m) %*% mp[1:dm1,1:dm1]) / mp.norm[1:dm1]
+			,df[,c(order.var,"ucid","t.frame")]))
+		names(db)<-c(cor.prj.var.names,order.var,"ucid","t.frame")
+		return(db)
+	}
+
+	#use plyr to apply to all elements
+	db<-ddply(data,.by,cor.prj.df)
+
+	for(i in intersect(cor.prj.var.names,names(X$data))) X$data[[i]]<-NULL #deleting old version of the variable
+	join.by.vars<-c("ucid","t.frame") #setdiff(names(db),cor.prj.var.names)
+	tmp<-join(subset(X$data,select=join.by.vars),db,by=join.by.vars) #adding created variables to the dataset
+	for(i in cor.prj.var.names) X$data[[i]]<-tmp[[i]]
+		
+	X$variables$merged=unique(c(X$variables$merged,cor.prj.var.names))
+	X$variables$all=unique(c(X$variables$all,cor.prj.var.names))
+	
+	return(X)
+}
+
+
+calculate.cor.prj<-function(data,.by,order.var,select,pattern,center=ceiling(length(pattern)/2)
+			,correlation.prefix="cor.",projection.prefix="prj."){
+
+	#creating the pattern matrix
+	mpdim<-length(unique(data[,order.var]))
+	mp<-matrix(0,mpdim,mpdim)
+	for(i in 1:mpdim) mp[max(1,i-center+1):min(mpdim,i+center-1),i]<-pattern[max(1,center-i+1):min(length(pattern),mpdim-i+center)]
+	norm2<-function(x)sqrt(sum(x^2))
+	mp.norm<-apply(mp,2,norm2)*(norm2(pattern)/pattern[center])
+
+	#creating correlation and projection variable names
+	cor.prj.var.names<-paste0(rep(c(correlation.prefix,projection.prefix),each=length(select)),rep(select,2))
+	join.by.vars<-c(order.var,names(.by))
+	
+	#calculate correlation and projectio of a single element
+	cor.prj.df<-function(df){
+		df<-df[order(df[,order.var]),]
+		m<-as.matrix(df[,select])
+		dm1<-dim(m)[1]
+		db<-as.data.frame(cbind(
+			t(cor(m,mp[1:dm1,1:dm1]))
+			,t(t(m) %*% mp[1:dm1,1:dm1]) / mp.norm[1:dm1]
+			,df[,join.by.vars]))
+		names(db)<-c(cor.prj.var.names,join.by.vars)
+		return(db)
+	}
+
+	#use plyr to apply to all elements
+	db<-ddply(data,.by,cor.prj.df)
+
+	for(i in intersect(cor.prj.var.names,names(data))) data[[i]]<-NULL #deleting old version of the variable
+	tmp<-join(subset(data,select=join.by.vars),db,by=join.by.vars) #adding created variables to the dataset
+	for(i in cor.prj.var.names) data[[i]]<-tmp[[i]]
+	
+	return(data)
+}
+
+
+if(getRversion() >= "2.15.1") utils::globalVariables(c("pos","z.scan"))
 append.in.focus<-function(X,focus.var,in.focus.var="in.focus"){
 	id.vars=c("pos","t.frame","z.scan")
 	
@@ -11,6 +106,7 @@ append.in.focus<-function(X,focus.var,in.focus.var="in.focus"){
 	return(X)
 }
 
+if(getRversion() >= "2.15.1") utils::globalVariables(c("pos","time.index","t.frame","z.scan","z.slice","oif"))
 append.z.scan<-function(X
 	,fun.z.scan=function(x)(as.numeric(as.factor((x-x%%100)/100))) 
 	,fun.z.slice=function(x)(x%%100)
@@ -61,6 +157,10 @@ append.z.scan<-function(X
 	return(X)
 }
 
+
+if(getRversion() >= "2.15.1")  
+	utils::globalVariables(c("f.tot.p1.y","f.tot.y","f.tot.m1.y","f.tot.m2.y","f.tot.m3.y"
+		,"a.tot.p1","a.tot","a.tot.m1","a.tot.m2","a.tot.m3"))
 append.anular.y <- function(X) {
 
 	#cantidades anulares                                                       
@@ -77,10 +177,12 @@ append.anular.y <- function(X) {
 	return(X)
 }
 
+if(getRversion() >= "2.15.1")  
+	utils::globalVariables(c("f.tot.p1.c","f.tot.c","f.tot.m1.c","f.tot.m2.c","f.tot.m3.c"))
 append.anular.c <- function(X) {
 
 	#cantidades anulares                                                       
-	X=transform(X	
+	X<-transform(X	
 		,f.p1.c = f.tot.p1.c - f.tot.c
 		,f.m0.c = f.tot.c - f.tot.m1.c
 		,f.m1.c = f.tot.m1.c - f.tot.m2.c
@@ -93,6 +195,8 @@ append.anular.c <- function(X) {
 	return(X)
 }
 
+if(getRversion() >= "2.15.1")  
+	utils::globalVariables(c("f.tot.p1.r","f.tot.r","f.tot.m1.r","f.tot.m2.r","f.tot.m3.r"))
 append.anular.r <- function(X) {
 
 	#cantidades anulares                                                       
@@ -109,6 +213,9 @@ append.anular.r <- function(X) {
 	return(X)
 }
 
+if(getRversion() >= "2.15.1") 
+	utils::globalVariables(c("f.local.bg.y","maj.axis","min.axis","f.m2.y","a.m2","f.m1.y","a.m1","f.m0.y"
+	,"a.m0","f.p1.y","a.p1","f.mem.y","f.int.y"))
 append.memRec.y<-function(X){
   on.exit(gc())
   
@@ -135,6 +242,9 @@ append.memRec.y<-function(X){
   return(X)
 }
 
+if(getRversion() >= "2.15.1") 
+	utils::globalVariables(c("f.local.bg.r","maj.axis","min.axis","f.m2.r","a.m2","f.m1.r","a.m1","f.m0.r"
+	,"a.m0","f.p1.r","a.p1","f.mem.r","f.int.r"))
 append.memRec.r<-function(X){
   on.exit(gc())
   
@@ -161,7 +271,8 @@ append.memRec.r<-function(X){
   return(X)
 }
 
-
+if(getRversion() >= "2.15.1") 
+	utils::globalVariables(c("pos","oif.hour","oif.msec","D.oif.hour","D.oif.msec","oif.time.s"))
 append.oif.time<-function(X,OIF.date="OIF-date.txt",path=getwd(),pos.digits=2,oif.digits=2){
 	#loads times from a OIF-date.txt file, generated by the following scripts
 	#oif2txt.bat: for %%i in (*.oif) do type %%i > %%~ni.txt

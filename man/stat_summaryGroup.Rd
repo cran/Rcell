@@ -4,7 +4,8 @@
 
 \title{Summarise y and x values according to user defined groups.}
 \usage{
-	stat_summaryGroup(mapping = NULL, data = NULL, geom = "pointrange", position = "identity", ...)
+stat_summaryGroup(mapping = NULL, data = NULL, geom = "pointrange"
+	,position = "identity", ...)
 }
 \arguments{
   \item{mapping}{The aesthetic mapping, usually constructed

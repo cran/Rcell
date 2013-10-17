@@ -4,7 +4,8 @@
 
 \title{Calculate bootstraps confidence intervals of a time course}
 \usage{
-stat_bootstrap(mapping = NULL, data = NULL, geom = "pointrange", position = "identity", ...) 
+stat_bootstrap(mapping = NULL, data = NULL, geom = "pointrange"
+	, position = "identity", ...) 
 }
 \arguments{
   \item{mapping}{The aesthetic mapping, usually constructed
@@ -36,7 +37,8 @@ cplot(X,f.tot.y~t.frame,subset=pos==15,stat="summary",fun.data="mean_cl_boot"
 	,geom=c("point","errorbar","line"))
 
 #the stat bootstrap samples cells, and therefore the lack of independece is taken into account.
-#note that there can be no missing data for this to work. You can check this with the n.tot variable.
+#note that there can be no missing data for this to work. You can check this with the n.tot 
+#variable.
 X<-update_n.tot(X)
 cplot(X,f.tot.y~t.frame,subset=pos==15&n.tot==14,stat="bootstrap"
 	,geom=c("point","errorbar","line"),sample=ucid,group=pos)

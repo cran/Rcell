@@ -4,7 +4,8 @@
 
 \title{Calculate summary statistic after correcting for the 'sample effect'.}
 \usage{
-stat_interactionError(mapping = NULL, data = NULL, geom = "pointrange", position = "identity", ...) 
+stat_interactionError(mapping = NULL, data = NULL, geom = "pointrange"
+	,position = "identity", ...) 
 }
 \arguments{
   \item{mapping}{The aesthetic mapping, usually constructed

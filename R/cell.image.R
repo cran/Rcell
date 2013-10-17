@@ -9,9 +9,10 @@ cimage <- function(X,...) UseMethod("cimage")
 #public 
 #ToDo: allow for transformation funcions on images
 #ToDo: allow for anotation funcions, copy code from old package
-cimage.cell.data <- function(X,formula=NULL,facets=NULL
+cimage.cell.data <- function(X,formula=NULL,facets=NULL,QC.filter=TRUE
 							,time.var=c("*time*","t.frame","z.scan","z.slice"),time.course=NULL
-							,select=NULL,exclude=NULL,normalize.group="channel",...){
+							,select=NULL,exclude=NULL,normalize.group="channel",invert.lut=FALSE
+							,N=NULL,...){
 
 	#defining groups
 	group=c()
@@ -25,6 +26,7 @@ cimage.cell.data <- function(X,formula=NULL,facets=NULL
 	}
 
 	#evaluating expressions in formulas
+	if(isTRUE(QC.filter)) X$data <- X$data[X$data$QC,]
 	if(length(group)>0)
 		for(i in 1:length(group)){
 			vars <- all.vars(parse(text=group[i]))
@@ -38,6 +40,7 @@ cimage.cell.data <- function(X,formula=NULL,facets=NULL
 	X$variables$all<-names(X$data)
 	time.var=intersect(group,.select(X$variables,time.var,warn=FALSE))
 	if(isTRUE(time.var)) time.var<-NULL
+	sample.cells<-any(group%in%c("...","sample","cell","cells","cellID","ucid"))
 	group=setdiff(group,c(".","...","sample","cell","cells","cellID","ucid","channel",time.var))
 
 	#cell.image transformations required variables
@@ -50,12 +53,21 @@ cimage.cell.data <- function(X,formula=NULL,facets=NULL
 
 	if(is.null(time.course)) time.course=isTRUE(length(time.var)>0)
 
-	ci<-get.cell.image.cell.data(X,group=group,select=var_names,exclude=NULL
-								  ,time.course=time.course
-								  ,...)
+	#deciding how many cells to sample
+	if(is.null(N)){
+		N <- 1
+		if(sample.cells){ 
+			N <- 7
+			message("sampling N=7 cells for each condition")
+		}
+	}
 
+	ci<-get.cell.image.cell.data(X,group=group,select=var_names,exclude=NULL
+								  ,time.course=time.course,N=N,QC.filter=QC.filter
+								  ,...)
 	#cell.image transformations
 	ci<-cnormalize(ci,normalize.group)
+	if(invert.lut) ci<-invert.lut(ci)
 
 	return(cimage.cell.image(ci,formula=formula,facets=facets,allow.expressions=TRUE,...))
 }
@@ -93,24 +105,38 @@ plot.Image<-function(x,width=NULL,height=NULL,omi=1,interpolate=FALSE,vp=NULL,..
 #*************************************************************************#
 #public 
 #ToDo: add box arround facets legends
-cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed",allow.expressions=FALSE
+cimage.cell.image <- function(X,formula=NULL,subset=NULL,facets=NULL,scales="fixed",allow.expressions=FALSE
 							   ,nx=NULL,ny=NULL,facets.nx=NULL,facets.ny=NULL
 							   ,bg.col="white",border=1,facets.border=1,rev.y=TRUE
 							   ,font.size=14,font.col="black",display=interactive(),...){
 
+	subs.subset<-substitute(subset)
+	if(!is.null(subs.subset)) X<-subset.cell.image(X,deparse(subs.subset))
+
 	imgdf<-droplevels(img.desc(X))
+
+	if(any(is.na(imgdf))) 
+		warning("NAs in img.desc variables: ",toString(names(which(sapply(imgdf,function(x)any(is.na(x)))))))
 
 	#cheking formula
 	if(is.null(formula)){ #no formula
 		if(is.null(facets)){ #no formula nor facets
 			#just tiling images toghether
-			outimg<-tile(normalize(EBImage::combine(X)),nx=ceiling(sqrt(length(X))))
+			nx=ceiling(sqrt(length(X)))
+			imgdf<-transform(imgdf,facet_id=1,facet_x=1,facet_y=1,facet_z=1
+								  ,img_id=img.index
+							      ,img_id_x=1+(img.index-1)%%nx
+							      ,img_id_y=1+(img.index-1)%/%nx)
+			imgdf<-transform(imgdf,img_x=img_id_x,img_y=img_id_y)
+			class(X)<-"list" #this line is reuired to correct bug in BioC 2.13		
+			outimg<-EBImage::tile(EBImage::normalize(EBImage::combine(X)),nx=nx)
+			class(X)<-c("cell.image","list") #this line is reuired to correct bug in BioC 2.13
 			if(display) EBImage::display(outimg)
+			img.desc(outimg)<-imgdf
 			return(invisible(outimg)) #like print.cell.image
-			
 		} else { #if facets but no formula, just tile images 
 			pformula=list(lterm=".",rterm="img.index",sterm=NULL,type="wrap_horizontal") 
-			if(scales!="none") scales="free"
+			if(scales!="none") scales="facets_only"
 		}
 	} else { #formula
 		if(!is.formula(formula)) stop("formula required")
@@ -147,9 +173,9 @@ cimage.cell.image <- function(X,formula=NULL,facets=NULL,scales="fixed",allow.ex
 	}
 
 	#calculating images positions
-	if(scales=="fixed"|scales=="none"){
+	if(scales%in%c("fixed","none")){
 		imgdf<-.append.panel.idxyz(imgdf,pformula,var.prefix="img_",nx=nx,ny=ny,rev.y=rev.y)
-	} else if (scales=="free"){
+	} else if (scales%in%c("free","facets_only")){
 		imgdf<-do.call("rbind",dlply(imgdf,.(facet_id),.append.panel.idxyz,pform=pformula,var.prefix="img_",nx=nx,ny=ny,rev.y=rev.y))
 	} else stop("unknown value for scales argument")
 	
@@ -298,7 +324,7 @@ get.cell.image <- function(X,...) UseMethod("get.cell.image")
 #public 
 #returns a list of croped cells images, given a cell.data object 
 get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=NULL,time.course=TRUE
-								,group=NULL,N=7,select=NULL,exclude=NULL,QC.filter=TRUE
+								,group=NULL,na.rm=TRUE,N=7,select=NULL,exclude=NULL,QC.filter=TRUE
 								,box.size=20,...){
 
 	subset=substitute(subset)
@@ -318,17 +344,40 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 	#selecting variables to include in dataset
 	var_names=union(all.vars(channel.subset),group)
 	var_names=union(var_names,all.vars(subset))
+	if("maskID"%in%names(X$data)) var_names=union(var_names,"maskID")
 	var_names=union(var_names,c(.CELLID_ID_VARS,"ucid","xpos","ypos"))
 	if(!is.null(select)|!is.null(exclude))
 		var_names=union(var_names,.select(X$variables,select,exclude))
 	var_names=setdiff(var_names,"channel")
 
 	#subsetting the dataset
-	if(!is.null(subset))
+	if(!is.null(subset)){
 		data=data[eval(subset,data),intersect(var_names,names(data))]
 		#data=data[eval(subset,data,parent.frame(n=1)),intersect(var_names,names(data))]
-	else 
+	} else{ 
 		data=subset(data,select=var_names)
+	}
+
+	#cheking for NAs in grouping vars
+	if(any(is.na(data[,group]))){
+		NA.vars<-group
+		if(length(group)>1)	NA.vars<-names(which(sapply(data[,group],function(x)any(is.na(x)))))
+		if(length(NA.vars)>1) {
+			NA.registers<-apply(is.na(data[,NA.vars]),1,any)
+		} else {
+			NA.registers<-is.na(data[,NA.vars])
+		}
+		if(isTRUE(na.rm)){ #removing registers with NAs in grouping vars
+			data<-data[!NA.registers,]
+			message("Removing ",sum(NA.registers)," registers ("
+					,signif(100*sum(NA.registers)/length(NA.registers),2)
+					,"%) with NAs in group variable(s): ",toString(NA.vars))
+		} else {
+			warning("There are ",sum(NA.registers)," registers ("
+					,signif(100*sum(NA.registers)/length(NA.registers),2)
+					,"%) with NAs in group variable(s): ",toString(NA.vars),".\nUse na.rm=TRUE to remove them.")
+		}
+	}
 
 	#selecting N random cells per group 
 	if(is.null(N)|is.na(N)|N==0|tolower(N)=="all") N<-NULL
@@ -337,7 +386,8 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 	 else  #random sampling if no groups are specifyied
 		data<-.sample.N.ucid(data,N)
 
-	if(!time.course&max(table(data$ucid))>0){ #if several times per cell in a group, and NOT a time course
+	#if several times per cell in a group AND NOT set as time.course AND several t.frames from which to choose
+	if(!time.course&max(table(data$ucid))>0&length(unique(data$t.frame))>1){ 
 		data<- #selecting random times
 		ddply(data,c(group,"ucid"),function(df) df[sample(1:dim(df)[1],1),])
 		message("Selecting random t.frames for each cell. Use time.course=TRUE if it's a time course.")
@@ -346,7 +396,7 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 	#"unfolding" dataset
 	X$images<-transform(X$images,image=factor(image))
 	merge.vars<-setdiff(names(X$images),setdiff(names(data),c("pos","t.frame"))) #removing vars that might cause problems when merging
-	data=merge(data,X$images[,merge.vars],by=c("pos","t.frame"),suffixes = c("",""))
+	data<-merge(data,X$images[,merge.vars],by=c("pos","t.frame"),suffixes = c("",""))
 
 	#filtering by channel
 	if(!is.null(channel.subset))
@@ -364,8 +414,8 @@ get.cell.image.cell.data <- function(X,subset=NULL,channel.subset=NULL,channel=N
 #public 
 #returns a list of croped cells images, given a data.frame specifying
 #the xpos, ypos, path and image name
+if(getRversion() >= "2.15.1") utils::globalVariables(c("QC","path.image","xpos","ypos","offset.x","offset.y"))
 get.cell.image.data.frame <- function(X,box.size=20,contained.box=FALSE,bg.col=0,...){
-	require(EBImage)
 
 	#renaming data.frame X to img.desc for clarity
 	img.desc<-X
@@ -373,6 +423,9 @@ get.cell.image.data.frame <- function(X,box.size=20,contained.box=FALSE,bg.col=0
 	#cheking for required data.frame columns
 	if(!all(c("xpos","ypos","image","path") %in% names(img.desc)))
 		stop("xpos, ypos, image and path columns required in data.frame")
+
+	if(!"offset.x"%in%names(img.desc)) img.desc<-transform(img.desc,offset.x=0)
+	if(!"offset.y"%in%names(img.desc)) img.desc<-transform(img.desc,offset.y=0)
 
 	#cheking that the image files exist
 	img.fnames=with(img.desc,paste(path,image,sep="/"))
@@ -393,20 +446,34 @@ get.cell.image.data.frame <- function(X,box.size=20,contained.box=FALSE,bg.col=0
 
 	#open each image once, and crop all the required cells, then close image
 	cell.image<-list()
-	for(i in unique(img.desc$path.image)){
-		df=subset(img.desc,path.image==i)
-
-		capture.output(img<-EBImage::readImage(i)) #capture.output to avoid anoying text
+	for(i in as.character(unique(img.desc$path.image))){
+		df<-subset(img.desc,path.image==i)
+		is.mask<-isTRUE(unique(df$channel)=="mask")
+		if(is.mask){ #mask are saved as .rds objects
+			img<-readRDS(i)
+		}else{ #regular tif image
+			capture.output(img<-EBImage::readImage(i)) #capture.output to avoid anoying text
+			if(colorMode(img)==Color){ 
+				colorMode(img)<-Grayscale
+				img<-img[,,1]
+			}
+		}
 		max.x<-dim(img)[1]
 		max.y<-dim(img)[2]
+
+		#calculating cell box edges
+		df<-transform(df,x0=xpos+offset.x-box.size
+						,x1=xpos+offset.x+box.size
+						,y0=ypos+offset.y-box.size
+						,y1=ypos+offset.y+box.size)	
 
 		for(j in unique(df$img.index)){
 
 			#calculating cell box edges
-			x0<-df[df$img.index==j,"xpos"]-box.size
-			x1<-df[df$img.index==j,"xpos"]+box.size
-			y0<-df[df$img.index==j,"ypos"]-box.size
-			y1<-df[df$img.index==j,"ypos"]+box.size
+			x0<-df[df$img.index==j,"x0"]
+			x1<-df[df$img.index==j,"x1"]
+			y0<-df[df$img.index==j,"y0"]
+			y1<-df[df$img.index==j,"y1"]
           
 			left.margin=0
 			right.margin=0
@@ -428,6 +495,12 @@ get.cell.image.data.frame <- function(X,box.size=20,contained.box=FALSE,bg.col=0
 
 			tmp<-EBImage::Image(bg.col,colormode="Grayscale", dim = c(2*box.size+1,2*box.size+1))
 			tmp[(left.margin+1):(2*box.size+1-right.margin),(top.margin+1):(2*box.size+1-bottom.margin)]<-img[x0:x1,y0:y1]
+			#removing masks of other cells
+			if(is.mask){
+				mid<-df$maskID[df$img.index==j]
+				tmp[tmp!=mid]<-0
+				tmp[tmp==mid]<-1
+			}
 			cell.image[[j]]<-tmp
 		}
 	}
@@ -453,9 +526,55 @@ is.cell.image <- function(X) inherits(X,"cell.image")
 
 #*************************************************************************#
 #public 
+merge.cell.image<-function(x,y,...){
+
+	if(!is.cell.image(x)|!is.cell.image(y)) stop("x and y should be of class cell.image")
+	box.size.x<-unique(as.vector(sapply(x,dim)))
+	if(length(box.size.x)>1) stop("box.size for x images is not homogeneous")
+	box.size.y<-unique(as.vector(sapply(y,dim)))
+	if(length(box.size.y)>1) stop("box.size for y images is not homogeneous")
+	if(box.size.x!=box.size.y) stop("x and y should have the same box.size")
+	
+	img.desc.x<-img.desc(x)
+	img.desc.y<-img.desc(y)
+
+	if(".merge.index"%in%names(img.desc.x)) #x has been merged before
+		mi<-max(img.desc.x$.merge.index)
+	else #first time x is merged
+		img.desc.x$.merge.index<-mi<-1
+		
+	if(".merge.index"%in%names(img.desc.y)) #y has been merged before
+		img.desc.y$.merge.index<-img.desc.y$.merge.index + mi
+	else #first time y is merged
+		img.desc.y$.merge.index<-mi + 1
+
+	idn<-intersect(names(img.desc.x),names(img.desc.y))
+	excluded.vars<-setdiff(union(names(img.desc.x),names(img.desc.y)),idn) 
+	if(length(excluded.vars)>0) warning("variables ",toString(excluded.vars)," are only in one object and will be excluded")
+	img.desc.x<-subset(img.desc.x,select=idn)
+	img.desc.y<-subset(img.desc.y,select=idn)
+	
+	img.desc.y$img.index <- img.desc.y$img.index + length(x)
+	z<-c(x,y)
+	attr(z,"img.desc")<-rbind(img.desc.x,img.desc.y)
+	class(z)<-c("cell.image","list")
+	return(z)
+}
+
+
+#*************************************************************************#
+#public 
 img.desc <- function(X){
 	if(!(is.cell.image(X)|is.Image(X))) stop("cell.image or Image object required")
 	attr(X,"img.desc")
+}
+
+#*************************************************************************#
+#public 
+"img.desc<-"  <- function(x, value)
+{
+  attr(x, "img.desc") <- value
+  x
 }
 
 #*************************************************************************#
@@ -496,6 +615,30 @@ print.cell.image<-function(x,nx=ceiling(sqrt(length(x))),...){
 
 #*************************************************************************#
 #public 
+subset.cell.image<-function(x,.subset=TRUE,select=NULL,exclude=NULL,...){
+
+	subs.subset=substitute(.subset)
+
+	img.desc.x<-img.desc(x)
+	img.desc.x<-arrange(img.desc.x,img.index)
+	select.vars=.select(list(all=names(img.desc.x)),select,exclude)
+	if(isTRUE(select.vars)) select.vars=names(img.desc.x)
+	if(subs.subset[[1]]=="deparse") { #called from other function
+		keep.rows<-eval(parse(text=.subset),img.desc(x))
+	} else {
+		keep.rows<-eval(subs.subset,img.desc.x)
+	}
+	x<-x[img.desc.x[keep.rows,"img.index"]]
+	img.desc.x<-img.desc.x[keep.rows,select.vars]
+	img.desc.x$img.index<-seq_len(length(x))
+	class(x)<-c("cell.image","list")	
+	img.desc(x)<-img.desc.x
+	return(x)
+}
+
+
+#*************************************************************************#
+#public 
 #ToDo: implement annotate
 show.img<-function(X,pos,t.frame=0,channel="BF.out",image.title=""
 					,annotate=NULL,cross=!QC,QC.filter=FALSE,subset=TRUE,cross.col=c(0.1,0.9)
@@ -504,13 +647,14 @@ show.img<-function(X,pos,t.frame=0,channel="BF.out",image.title=""
 	cross=substitute(cross)	
 	subset=substitute(subset)	
 
-	#library EBImage
-    require(EBImage)
-    if(any(!is.element(pos,X$data$pos))) stop("Selected positions not in dataset")    
-	
-	arg.df=data.frame(pos=pos,t.frame=t.frame,channel=channel)
-	img.df=join(arg.df,X$images,by=c("pos","t.frame","channel"))
-	img.df=data.frame(img.df,index=1:dim(img.df)[1])
+    if(any(!is.element(pos,X$images$pos))) stop("Selected positions not in dataset")    
+
+	arg.df<-data.frame(pos=rep(pos,each=length(t.frame)*length(channel))
+					  ,t.frame=rep(rep(t.frame,each=length(channel)),length(pos))
+					  ,channel=rep(channel,length(pos)*length(t.frame)))
+
+	img.df<-join(arg.df,X$images,by=c("pos","t.frame","channel"))
+	img.df<-data.frame(img.df,index=1:dim(img.df)[1])
 
 	#cheking that the image files exist
 	img.fnames=with(img.df,paste(path,image,sep="/"))
@@ -521,28 +665,32 @@ show.img<-function(X,pos,t.frame=0,channel="BF.out",image.title=""
 	#loading the images
 	img.list<-list()
 	for(i in 1:length(img.fnames)){
-		img.list[[i]]<-capture.output(EBImage::readImage(img.fnames[i])) #capture.output to avoid anoying text
+		capture.output(img.list[[i]]<-EBImage::readImage(img.fnames[i])) #capture.output to avoid anoying text
 		if(isTRUE(normalize)) img.list[[i]]<-EBImage::normalize(img.list[[i]])
 	}
 
 	#subsetting the data
 	X$data<-X$data[X$data$pos%in%pos&X$data$t.frame%in%t.frame,]
-	if(isTRUE(QC.filter) && class(X$data$QC)=="logical") X$data=subset(X$data,QC)
-	if(!isTRUE(subset)) X$data<-subset(X$data,eval(subset,X$data))
+	if(dim(X$data)[1]>0){ 
+		if(isTRUE(QC.filter) && class(X$data$QC)=="logical") X$data=subset(X$data,QC)
+		if(!isTRUE(subset)) X$data<-subset(X$data,eval(subset,X$data))
 		
-	#adding crosses to image
-	if(!is.null(cross)){ 
-		cross.df=data.frame(subset(X$data,select=c(pos,t.frame,cellID,xpos,ypos)),cross=as.logical(eval(cross,X$data)))
-		for(i in img.df$index){
-			cell.df=cross.df[cross.df$pos==img.df$pos[img.df$index==i]&cross.df$t.frame==img.df$t.frame[img.df$index==i]&cross.df$cross,c("xpos","ypos")]
-			for(j in 1:length(cross.col))
-				img.list[[i]]<-drawCross(img.list[[i]],cell.df$xpos+(j-1),cell.df$ypos,col=cross.col[j])
-			#display(img.list[[i]])
+		#adding crosses to image
+		if(!is.null(cross)){ 
+			cross.df=data.frame(subset(X$data,select=c(pos,t.frame,cellID,xpos,ypos)),cross=as.logical(eval(cross,X$data)))
+			for(i in img.df$index){
+				cell.df=cross.df[cross.df$pos==img.df$pos[img.df$index==i]&cross.df$t.frame==img.df$t.frame[img.df$index==i]&cross.df$cross,c("xpos","ypos")]
+				for(j in 1:length(cross.col))
+					img.list[[i]]<-drawCross(img.list[[i]],cell.df$xpos+(j-1),cell.df$ypos,col=cross.col[j])
+				#display(img.list[[i]])
+			}
 		}
+	
+		if(!is.null(annotate)) stop("annotate not implemented yet, sorry")
+	} else {
+		if(!is.null(cross)) message("no cells for this image")
 	}
-	
-	if(!is.null(annotate)) stop("annotate not implemented yet, sorry")
-	
+
 	SHOW_IMAGE<-EBImage::combine(img.list)
 	if(display) EBImage::display(SHOW_IMAGE,title="show.image")
 	return(invisible(SHOW_IMAGE))
@@ -571,7 +719,7 @@ update_img.path<-function(X,img.path=getwd(),subset=NULL){
 }
 
 #####################cell.image transformation functions###################
-cnormalize<-function(X=NULL,normalize.group=c("channel"),...){
+cnormalize<-function(X=NULL,normalize.group=c("channel"),ft=c(0,1),...){
 
 	normalize.group=as.character(normalize.group)
 	if(is.null(X)) return(setdiff(normalize.group,c("channel","sample","...")))
@@ -580,7 +728,7 @@ cnormalize<-function(X=NULL,normalize.group=c("channel"),...){
 	img.list<-dlply(img.desc(X),normalize.group,function(df)df$img.index)
 	for(i in names(img.list)){
 		img<-EBImage::combine(X[img.list[[i]]])
-		img<-EBImage::normalize(img,separate=FALSE)
+		img<-EBImage::normalize(img,separate=FALSE,ft=ft)
 		n.frames<-length(img.list[[i]])
 		if(n.frames==1){
 			X[[img.list[[i]]]]<-img
@@ -590,6 +738,13 @@ cnormalize<-function(X=NULL,normalize.group=c("channel"),...){
 		}
 	}
 
+	return(X)
+}
+
+
+invert.lut<-function(X=NULL,...){
+	if(is.null(X)) return(c("ucid","channel","t.frame"))
+	for(i in seq_along(X))	X[[i]]<-(1-X[[i]])
 	return(X)
 }
 
@@ -605,7 +760,7 @@ ciciply<-function(X=NULL,group=c("pos","cellID","channel"),FUN=sum,MARGIN=c(1,2)
 	
 	img.list<-dlply(img.desc(X),group,function(df)df$img.index)
 	Y<-list()
-	Y.index<-data.frame(img.index=1:length(names(img.list)),img.name=names(img.list))
+	Y.index<-data.frame(img.index=seq_len(length(img.list)),img.name=names(img.list))
 	for(i in names(img.list)){
 		img<-EBImage::combine(X[img.list[[i]]])
 		img<-EBImage::as.Image(apply(img, MARGIN, FUN))
@@ -616,6 +771,7 @@ ciciply<-function(X=NULL,group=c("pos","cellID","channel"),FUN=sum,MARGIN=c(1,2)
 	if(warn) message("removing variables from img.desc: ",toString(rm.vars))
 	Y.img.desc<-subset(Y.img.desc,select=setdiff(names(Y.img.desc),rm.vars))
 	Y.img.desc$img.name<-interaction(Y.img.desc[,group],drop=TRUE, lex.order=FALSE)
+	if("img.index"%in%names(Y.img.desc)) Y.img.desc$img.index<-NULL
 	Y.img.desc<-join(Y.img.desc,Y.index,by="img.name")
 	Y.img.desc$img.name<-NULL
 
@@ -671,16 +827,16 @@ add.maj.min.axis<-function(X=NULL,col=0.75,angle.var=NA,...){
 #####################General Image Manipulation Functions###################
 
 drawCross<-function(img, x, y, size=2, col=0.75, z=1){
-   EBImage:::validImage(img)
-    if (EBImage:::colorMode(img) == EBImage:::Color) 
+   #EBImage::validImage(img)
+    if (EBImage::colorMode(img) == EBImage::Color) 
         stop("this method doesn't support the 'Color' color mode")
     if (any(is.na(img))) 
         stop("'img' shouldn't contain any NAs")
     if (missing(x)) stop("'x' is missing")
     if (missing(y)) stop("'y' is missing")
-    if (z < 1 | z > EBImage:::getNumberOfFrames(img, "render")) 
+    if (z < 1 | z > EBImage::getNumberOfFrames(img, "render")) 
         stop("'z' must be a positive integer lower than the number of image frames")
-    if (EBImage:::colorMode(img) == Color) {
+    if (EBImage::colorMode(img) == Color) {
         rgb = as.numeric(col2rgb(col)/255)
         if (length(rgb) != 3 || any(is.na(rgb))) 
             stop("In Color mode, 'col' must be a valid color")
@@ -709,10 +865,9 @@ drawCross<-function(img, x, y, size=2, col=0.75, z=1){
 	invisible(img)
 }
 
-drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1) 
-{
-    EBImage:::validImage(img)
-    if (EBImage:::colorMode(img) == EBImage:::Color) 
+drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1){
+    #EBImage:::validImage(img)
+    if (EBImage::colorMode(img) == EBImage::Color) 
         stop("this method doesn't support the 'Color' color mode")
     if (any(is.na(img))) 
         stop("'img' shouldn't contain any NAs")
@@ -720,12 +875,12 @@ drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1)
     if (missing(y1)) stop("'y1' is missing")
     if (missing(x2)) stop("'x2' is missing")
     if (missing(y2)) stop("'y2' is missing")
-    if (z < 1 | z > EBImage:::getNumberOfFrames(img, "render")) 
+    if (z < 1 | z > EBImage::getNumberOfFrames(img, "render")) 
         stop("'z' must be a positive integer lower than the number of image frames")
     xy2z = as.integer(c(x1, y1, x2, y2, z - 1))
     if (length(xy2z) != 5 || any(is.na(xy2z))) 
         stop("'x1', 'y1', 'x2', 'y2' and 'z' must be scalar values")
-    if (EBImage:::colorMode(img) == Color) {
+    if (EBImage::colorMode(img) == Color) {
         rgb = as.numeric(col2rgb(col)/255)
         if (length(rgb) != 3 || any(is.na(rgb))) 
             stop("In Color mode, 'col' must be a valid color")
@@ -750,7 +905,7 @@ drawLine<-function (img, x1, y1, x2, y2, col=0.75, z = 1)
 }
 
 #work arround to replace EBImage deprcated function drawtext
-drawText<-function(img,labels,x=NULL,y=NULL,adj=c(0,0),reuseLabels=TRUE){
+drawText<-function(img,labels,x=NULL,y=NULL,adj=c(0,0),reuseLabels=TRUE,col=NULL){
 
 img.width<-dim(img)[1]
 img.height<-dim(img)[2]
@@ -760,11 +915,13 @@ if(is.null(y)) y<-img.width/2
 
 #create name to uniquely identify label temporary tif file
 img.fname<-paste(tempdir(),"/Rcell_drawText_"
-			,paste(digest::digest(img),digest::digest(labels),x,y,adj[1],adj[2],sep="_")
+			,paste(digest::digest(img),digest::digest(labels),sum(x),sum(y),adj[1],adj[2],sep="_")
 			,".tif",sep="")
 
 #create file if it doesn't exist
 if(!file.exists(img.fname)|!reuseLabels){
+
+	open.dev<-dev.list()
 
 	#create device 
 	tiff(filename = img.fname,
@@ -773,16 +930,16 @@ if(!file.exists(img.fname)|!reuseLabels){
 
 	#change graphical parameters
 	op<-par(mar=c(0,0,0,0),oma=c(0,0,0,0))
-	on.exit(par(op))
+	if(!is.null(open.dev)) on.exit(par(op))
 
 	#plot current img in device
 	EBImage::display(img,method = "raster")
 	
 	#add text to img
-	text(x/img.width,1-y/img.height,labels,adj=adj)
+	text(x/img.width,1-y/img.height,labels,adj=adj,col=col)
 
 	#close device
-	dev.off()
+	dev.off(setdiff(dev.list(),open.dev))
 }
 
 #open image and change colorMode 
@@ -801,6 +958,9 @@ return(img)
 #side	 an integer specifying which side of the plot the axis is to be drawn on. 
 #The axis is placed as follows: 1=below, 2=left, 3=above and 4=right.
 #To plot de axis, a tiff device is opened in a temp dir, text and lines are called, and the image is loaded to a EBImage Image
+if(getRversion() >= "2.15.1")  
+	utils::globalVariables(c("img_coord","pos","cellID"))
+
 .axis<-function(imgdf,pform,side=1,img.size=41,border=1,font.size=14,max.nchar=floor(img.size*2/font.size),mex=1.2){ #,font.col="black",bg.col="white",line.col=0
 
 	#create name to uniquely identify label temporary tif file
@@ -879,7 +1039,7 @@ return(img)
 
 				lab=as.character(axisdf[,term[n_term-i+1]])
 				if(term[n_term-i+1]=="sample"){ #dealing with "sample" labels
-					if(all(c("pos","cellID","sample")%in%names(df))){ #pos and cellID columns in imgdf
+					if(all(c("pos","cellID","sample")%in%names(imgdf))){ #pos and cellID columns in imgdf
 						pIDs<-ddply(subset(imgdf,select=c("pos","cellID","sample")),.(pos,cellID)
 							,function(df)data.frame(sample=ifelse(length(unique(df$sample))==1,unique(df$sample),NA)))
 						pIDs<-transform(pIDs,lab=as.character(interaction(pIDs$pos,pIDs$cellID))) 
@@ -893,8 +1053,10 @@ return(img)
 						lab=rep(".",times=length(lab)) #using dots
 					}
 				}
-				lab=substr(lab,1,max.nchar)  #allow more flixbility here
 				
+				lab=substr(lab,1,(axisdf$max_coord-axisdf$min_coord+1)*max.nchar)  #recorto labels para que entren
+				#lab=substr(lab,1,max.nchar) #allow more flexbility here
+
 				ylabelpos<-	switch(side
 					,round((1+(i-1)*mex)*font.size)		#side==1
 					,round((n_term-i+2-mex)*mex*font.size)	#side==2
@@ -954,7 +1116,8 @@ return(img)
 
 }
 
-
+if(getRversion() >= "2.15.1")  
+	utils::globalVariables(c("facet_z","facet_id"))
 
 .append.panel.idxyz<-function(imgdf,pform,var.prefix="panel_",nx=NULL,ny=NULL,rev.y=TRUE){
 	if(pform$type=="none"){
@@ -985,7 +1148,8 @@ return(img)
 	return(imgdf)
 }
 
-
+if(getRversion() >= "2.15.1")  
+	utils::globalVariables(c("factor_id_x","factor_id_y","factor_id","factor_x","factor_y"))
 
 .grid <- function(df,lterm,rterm,var.prefix="panel_",rev.y=TRUE){
 
@@ -1005,7 +1169,7 @@ return(img)
 	return(df)
 }
 
-
+if(getRversion() >= "2.15.1") utils::globalVariables(c("factor_id"))
 .wrap <- function(df,nx=NULL,ny=NULL,vertical=FALSE,var.prefix="panel_"){
 	
 	df$factor_id <- .ordered.interaction(df)
@@ -1040,6 +1204,7 @@ return(img)
 	)
 }
 
+if(getRversion() >= "2.15.1") utils::globalVariables(c("ucid"))
 .sample.N.ucid<-function(df,N){
 
 	group.ucid=unique(df$ucid)

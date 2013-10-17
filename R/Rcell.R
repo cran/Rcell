@@ -18,12 +18,15 @@
 #loads a cellID output to a cell.data object
 #ToDo: fix bf as fluorescence option of cellID, with image.info table
 #ToDo: when bf_as_fl string BF_ appears as channel identifier
+if(getRversion() >= "2.15.1") utils::globalVariables(c("cellID","pos","flag","fluor","bright"))
 load.cellID.data <-
 function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
             path=getwd(),basename="out"
 			,select=NULL,exclude=NULL
             ,load.vars="all",split.image=FALSE) {
 	on.exit(gc())	
+
+	suppressWarnings(suppressPackageStartupMessages(is.Hmisc<-require("Hmisc",quietly=TRUE))) 
 		
 	#Searching for folders that match pos.pattern
 	posdir=dir(pattern=pattern, path=path)
@@ -81,7 +84,8 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 					if(i %% 10 == 0) cat("\n")
 					
 					pos.data[[pos.index]]<-read.table(fname,sep="\t",header=TRUE,colClasses="numeric")
-					pos.data[[pos.index]]<-Hmisc::cleanup.import(pos.data[[pos.index]],pr=FALSE)
+					if(is.Hmisc)
+						pos.data[[pos.index]]<-Hmisc::cleanup.import(pos.data[[pos.index]],pr=FALSE)
 					
 					#asserting same columns
 					if(length(column.names)==0){ #first position
@@ -290,7 +294,7 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 				,all=names(pos.data))
 	for(i in 1:dim(channels)[1])
 		variables[[channels[[i,"name"]]]]<-grep(glob2rx(paste("*.",channels[[i,"posfix"]],sep="")),names(pos.data),value=TRUE)
-  
+
 	cell.data=
 		list(data=pos.data
 			,QC.history=list()
@@ -301,6 +305,7 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 			,images=image.info
 			,software="Cell-ID"
 			,load.date=date()
+			,load.sessionInfo=sessionInfo()
         )
 	class(cell.data)<-c("cell.data","list")
 	if(!is.null(select)||!is.null(exclude))
@@ -371,6 +376,7 @@ load.cellX.data <- function(pattern=glob2rx("Position*.txt"),path=getwd()){
 			,images=NULL
 			,software="CellX"
 			,load.date=date()
+			,load.sessionInfo=sessionInfo()
         )
 	class(cell.data)<-c("cell.data","list")
 
@@ -460,6 +466,8 @@ as.cell.data.list <- function(X,path.images=NULL,...){
 	class(cd)=c("cell.data","list")
 	return(cd)
 }
+
+if(getRversion() >= "2.15.1") utils::globalVariables(c("fluor","bright"))
 as.cell.data.default <- as.cell.data.list
 
 #*************************************************************************#
@@ -610,7 +618,7 @@ load.pdata<-function(X,pdata="pdata.txt",by=NULL,path=getwd()){
 #ToDo: warn use of posibly outdated variables
 #ToDo: add subset index to transform registers
 #ToDo: allow rename vars without *1
-#ToDo: allow ro replace vars 
+#ToDo: allow to replace vars 
 #ToDo: add a subset argument to this function, so "cummulative" transformations can be done
 transform.cell.data <- function(`_data`,...,QC.filter=TRUE){
 	#browser()
@@ -700,6 +708,73 @@ transformBy.cell.data <- function(`_data`,.by,...,QC.filter=TRUE){
 transformBy <- function(`_data`,.by,...) UseMethod("transformBy")
 
 #*************************************************************************#
+#public
+#aggregates cell data and returns a data frame
+aggregate.cell.data <- function(x, form.by, ..., FUN=mean
+								,subset=TRUE, select=NULL, exclude=NULL, QC.filter=TRUE){
+	args=as.list(match.call(expand.dots=FALSE))
+	if(isTRUE(try(is.formula(form.by),silent=TRUE))){ #formula
+		.data=do.call(as.data.frame
+			,args[intersect(c("x","subset","QC.filter"),names(args))])
+		aggr.args<-list(form.by)
+		if("..." %in% names(args))aggr.args<-args["..."]
+		aggr.args$data<- .data[,intersect(all.names(form.by),x$variables$all)]
+		aggr.args$FUN<-FUN
+		aggr=do.call("aggregate",aggr.args)
+	} else { #by argument
+		select.vars=.select(x$variables,select,exclude)
+		by.vars=names(as.quoted(form.by))
+		args$select<-unique(c(select.vars,by.vars))
+		.data=do.call(as.data.frame.cell.data,args[intersect(c("x","subset","select","QC.filter"),names(args))])
+		aggr=aggregate.data.frame(.data[select.vars]
+								  ,by=.data[by.vars]
+								  ,FUN=FUN,...)
+	}
+	return(aggr)
+}
+
+#*************************************************************************#
+#generic
+#Creates the generic function aggregateBy
+aggregateBy <- function(x,.by,...) UseMethod("aggregateBy")
+
+#*************************************************************************#
+#public 
+#aggregate a data.frame 
+aggregateBy.data.frame <- function(x,.by,select="all",...,FUN=mean,subset=NULL,exclude=NULL){
+	
+	#browser()
+	on.exit(gc())
+	subset=substitute(subset)
+
+	if(!is.null(subset)) x<-x[eval(subset,x),]
+
+	#doing the aggregation	
+	select.vars<- .select(list(all=names(x)),select,exclude)
+	by.vars<-names(as.quoted(.by))
+	aggr<-aggregate.data.frame(x[setdiff(select.vars,by.vars)],by=x[by.vars],FUN=FUN,...)
+
+	return(flatten.data.frame(aggr))
+} 
+aggregateBy.default<-aggregateBy.data.frame
+
+#*************************************************************************#
+#public
+#aggregates cell data and returns a data frame
+aggregateBy.cell.data <- function(x, .by, select, ..., FUN=mean
+								,subset=TRUE, exclude=NULL, QC.filter=TRUE){
+	args<-as.list(match.call(expand.dots=FALSE))
+	select.vars<-.select(x$variables,select,exclude)
+	by.vars<-names(as.quoted(.by))
+	args$select<-unique(c(select.vars,by.vars))
+	.data<-do.call(as.data.frame.cell.data,args[intersect(c("x","subset","select","QC.filter"),names(args))])
+	aggr<-aggregate.data.frame(.data[select.vars]
+							  ,by=.data[by.vars]
+							  ,FUN=FUN,...)
+	return(flatten.data.frame(aggr))
+}
+
+#*************************************************************************#
 #calculates the total number of frames in which a cell was found (after QC filter)
 update_n.tot <- function(object,QC.filter=TRUE,...){
 	on.exit(gc())
@@ -760,6 +835,7 @@ remove.vars <- function(X,select,exclude=NULL){
 #public
 #subsets the celID.data dataset and returns a data.frame
 #ToDo: include droplevels argument
+if(getRversion() >= "2.15.1") utils::globalVariables(c("QC"))
 subset.cell.data <- function(x,subset=TRUE,select="all",exclude=NULL,QC.filter=FALSE,...){
 	subset=substitute(subset)
 	
@@ -972,6 +1048,7 @@ QC.reset <- function(X){
 #resets the QC filter and undo history
 #ToDo: modify undo value of prevoius QC.history elements
 #ToDo: use subset to code this function
+if(getRversion() >= "2.15.1") utils::globalVariables(c("QC"))
 QC.execute <- function(X){
 	QC.attr=attributes(X$data$QC)
 	QC.attr.names=names(QC.attr)
@@ -1020,6 +1097,7 @@ print.cell.data<-function(x,...){
 #public
 #prints a summary.cell.data object
 #ToDo: xpos.nucl.y ypos.nucl.y, etc
+if(getRversion() >= "2.15.1") utils::globalVariables(c("undo","type","cer","can.undo","exclude.vars"))
 print.summary.cell.data<-function(x,...){
 	cat("\n",x$software,"data object summary")
 	cat("\n")
@@ -1091,9 +1169,10 @@ print.summary.cell.data<-function(x,...){
 #*************************************************************************#
 #public
 #returns a summary of a cell.data object
+if(getRversion() >= "2.15.1") utils::globalVariables(c(".id"))
 summary.cell.data <-function(object,...){
 
-	summary=list(load.date=object$load.date)
+	summary<-list(load.date=object$load.date)
 	summary$positions.path=unique(levels(object$images$path))
 	summary$software=object$software
 	summary$channels=object$channels
@@ -1103,7 +1182,9 @@ summary.cell.data <-function(object,...){
 	
 	summary$id.vars=object$variables$id.vars
 	if("posfix"%in%names(object$channels)){
-		summary$morpho.vars=.select(object$variables,select="morpho",exclude=paste("*.",object$channels$posfix,sep=""))
+		suppressWarnings(
+			summary$morpho.vars<-.select(object$variables,select="morpho",exclude=paste("*.",object$channels$posfix,sep=""))
+		)
 	}else {
 		summary$morpho.vars=object$variables$morpho
 	}
@@ -1167,31 +1248,6 @@ summary.cell.data <-function(object,...){
 	return(summary)
 }
 
-#*************************************************************************#
-#public
-#aggregates cell data and returns a data frame
-aggregate.cell.data <- function(x, form.by, ..., FUN=mean
-								,subset=TRUE, select=NULL, exclude=NULL, QC.filter=TRUE){
-	args=as.list(match.call(expand.dots=FALSE))
-	if(isTRUE(try(is.formula(form.by),silent=TRUE))){ #formula
-		.data=do.call(as.data.frame
-			,args[intersect(c("x","subset","QC.filter"),names(args))])
-		aggr.args<-list(form.by)
-		if("..." %in% names(args))aggr.args<-args["..."]
-		aggr.args$data<- .data[,intersect(all.names(form.by),x$variables$all)]
-		aggr.args$FUN<-FUN
-		aggr=do.call("aggregate",aggr.args)
-	} else { #by argument
-		select.vars=.select(x$variables,select,exclude)
-		by.vars=names(as.quoted(form.by))
-		args$select<-unique(c(select.vars,by.vars))
-		.data=do.call(as.data.frame.cell.data,args[intersect(c("x","subset","select","QC.filter"),names(args))])
-		aggr=aggregate.data.frame(.data[select.vars]
-								  ,by=.data[by.vars]
-								  ,FUN=FUN,...)
-	}
-	return(aggr)
-}
 
 #*************************************************************************#
 #upgrading reshape to generic
@@ -1256,6 +1312,7 @@ with.cell.data <- function(data,expr,subset=TRUE,select=NULL,exclude=NULL,QC.fil
 #private
 #restructure the dataset for FRET split images 
 #ToDo: some a.tot are negative. This might be due to a "virtual" cell created for simmetry
+if(getRversion() >= "2.15.1") utils::globalVariables(c("cellID","posfix","name"))
 .restructure.split.image<-function(X,upper.identifier="u",lower.identifier="l"){
 	common.vars=c("QC",.CELLID_ID_VARS_DERIV)	
 

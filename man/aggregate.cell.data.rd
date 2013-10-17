@@ -1,6 +1,10 @@
 \name{aggregate}
 \alias{aggregate.cell.data}
-
+\alias{aggregateBy}
+\alias{aggregateBy.cell.data}
+\alias{aggregateBy.data.frame}
+\alias{aggregateBy.default}
+                             
 \title{Compute Summary Statistics of Cell Data Subsets}
 
 \description{
@@ -9,11 +13,21 @@
 \usage{
 \method{aggregate}{cell.data}(x, form.by, ..., FUN=mean, subset=TRUE, select=NULL
   ,exclude=NULL, QC.filter=TRUE)
+  
+aggregateBy(x,.by,...)
+
+\method{aggregateBy}{cell.data}(x, .by, select, ..., FUN=mean, subset=TRUE, exclude=NULL, QC.filter=TRUE)
+
+\method{aggregateBy}{data.frame}(x,.by,select="all",...,FUN=mean,subset=NULL,exclude=NULL)
+
+\method{aggregateBy}{default}(x,.by,select="all",...,FUN=mean,subset=NULL,exclude=NULL)
+  
 }
 
 \arguments{
   \item{x}{ cell.data object }
   \item{form.by}{either a formula or variables to split data frame by, as quoted variables or character vector}
+  \item{.by}{variables to split data frame by, as quoted variables or character vector}
   \item{\dots}{further arguments passed to or used by methods}
   \item{FUN}{a function to compute the summary statistics which can be applied to all data subsets}
   \item{subset}{a boolean vector of length equal to the number of rows of the
@@ -33,6 +47,8 @@
  Note that this notations differs from the one used by \code{\link{reshape.cell.data}}
   If the second argument \code{form.by} are quoted variables or a character vector with variable names, these variables are taken as group.vars to split the dataset. The measure variables over which to apply FUN should be selected using the \code{select} and \code{exclude} arguments.
  
+ \code{aggregateBy} works as aggregate, but forces the use of quoted variables (or variable names) to define the groups by which the dataset is going to be split. This function also has a implementation for data frames. \code{aggregateBy} calls \code{flatten} before returning the data frame.
+ 
  }
 \value{
   a data frame with columns corresponding to the grouping variables followed by aggregated columns of the measure variables.
@@ -41,7 +57,7 @@
 \seealso{ \code{\link{aggregate}} }
 \examples{
 #load example dataset
-data(ACL394)
+data(ACL394filtered)
 
 #aggregate by pos and calculate mean f.tot.y
 aggregate(X,.(pos),select="f.tot.y")
@@ -66,6 +82,11 @@ aggregate(X,.(pos),select="f.tot.y",FUN=median)
 #dont apply the QC filter to the daset before aggregation
 aggregate(X,.(pos),select="f.tot.y",QC.filter=FALSE)
 
+#use aggregateBy on a cell.data object
+(agg<-aggregateBy(X,.(pos,AF.nM,t.frame),select="f.tot.y"))
+
+#use aggregateBy on a data.frame, calculate mean and sd among position means
+aggregateBy(agg,.(AF.nM,t.frame),select="f.tot.y",FUN=funstofun(mean,sd))
 }
 \keyword{manip}
 \keyword{methods}

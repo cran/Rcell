@@ -50,15 +50,15 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
   		} else stop("formula should be of the form y~x or ~x")	
   	}
 
-  	aesthetics <- compact(arguments[ggplot2:::.all_aesthetics])
-  	aesthetics <- aesthetics[!ggplot2:::is.constant(aesthetics)]
+  	aesthetics <- compact(arguments[.all_aesthetics])
+  	aesthetics <- aesthetics[!is.constant(aesthetics)]
 
 	#defining aesthetics as dataset variables only
   	var_names <- .get_var_names(arguments,names(data),warn=TRUE)	
   	aesthetics <- aesthetics[aesthetics %in% var_names | sapply(aesthetics,class)=="call"] 
 
   	aes_names <- names(aesthetics)
-  	aesthetics <- ggplot2:::rename_aes(aesthetics)
+  	aesthetics <- rename_aes(aesthetics)
   	class(aesthetics) <- "uneval"
 
 	#dealing with new data
@@ -111,7 +111,7 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
 				aesthetics$y=quote(value)
 				if(is.null(aesthetics$colour)) aesthetics$colour=quote(variable)
 				aes_names <- names(aesthetics)
-				aesthetics <- ggplot2:::rename_aes(aesthetics)		
+				aesthetics <- rename_aes(aesthetics)		
 			}
   
   
@@ -139,7 +139,7 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
   	#browser()
 
   	# Add geoms/statistics
-  	if (proto:::is.proto(position)) position <- list(position)
+  	if (proto::is.proto(position)) position <- list(position)
   	mapply(function(g, s, ps) {
     	if(is.character(g)) g <- ggplot2:::Geom$find(g)
     	if(is.character(s)) s <- ggplot2:::Stat$find(s)
@@ -340,6 +340,7 @@ zoom<-caxis
 xzoom <- function(xzoom=c(NA,NA),nx.breaks=7,...) Rcell::caxis(xzoom=xzoom,nx.breaks=nx.breaks,...)
 yzoom <- function(yzoom=c(NA,NA),ny.breaks=7,...) Rcell::caxis(yzoom=yzoom,ny.breaks=ny.breaks,...)
 
+
 ##################### Stats for ggplot2 ####################################
 # LICENCE: This code is derived from stat-summary.r group ggplot2, and is licenced under the GNU General Public Licence, version 2.0 http://www.gnu.org/licenses/gpl-2.0.html
 # This code is a simple 'alpha' hack and carried no warranty.
@@ -352,11 +353,11 @@ stat_summaryGroup <- function (mapping = NULL, data = NULL, geom = "pointrange",
 StatSummaryGroup <- proto(ggplot2:::Stat, {
   objname <- "summaryGroup"
  
-  default_geom <- function(.) ggplot2:::GeomPointrange
+  default_geom <- function(.) GeomPointrange
   required_aes <- c("group", "x", "y")
    
   calculate_groups <- function(., data, scales, fun.data = NULL, fun.y = NULL, fun.ymax = NULL, fun.ymin = NULL, fun.x = NULL, fun.xmax=NULL, fun.xmin=NULL, na.rm = FALSE, ...) {
-    data <- ggplot2:::remove_missing(data, na.rm, c("group", "x", "y"), name = "stat_summaryGroup")
+    data <- remove_missing(data, na.rm, c("group", "x", "y"), name = "stat_summaryGroup")
    
     if (!missing(fun.data)) {
       # User supplied function that takes complete data frame as input
@@ -381,13 +382,13 @@ StatSummaryGroup <- proto(ggplot2:::Stat, {
       }
     }
     return(summarise_by_group(data, fun, ...))
-    
   }
 })
 
+if(getRversion() >= "2.15.1") utils::globalVariables(c("group"))
 summarise_by_group <- function(data, summaryFun, ...) {
-	summary.db <- ddply(data, .(group), summaryFun, ...)
-  unique.db <- ddply(data, .(group), ggplot2:::uniquecols)
+  summary.db <- ddply(data, .(group), summaryFun, ...)
+  unique.db <- ddply(data, .(group), uniquecols)
   unique.db$y <- NULL
   unique.db$x <- NULL
  
@@ -407,7 +408,7 @@ StatBootstrap <- proto(ggplot2:::Stat, {
   calculate_groups <- function(., data, scales, R=1000, conf.int=.95, na.rm = TRUE, ...) {
 	data <- remove_missing(data, na.rm, c("group", "x", "y", "sample"), name = "stat_bootstrap")
 	
-	bootDf<-ddply(subset(data,select=c(group,sample,x,y)),.(group),Rcell:::timecourse_bootstrap,R=R,conf.int=conf.int,na.rm=na.rm)
+	bootDf<-ddply(subset(data,select=c(group,sample,x,y)),.(group),Rcell::timecourse_bootstrap,R=R,conf.int=conf.int,na.rm=na.rm)
 
 	bootDf<-join(bootDf
 				,ddply(subset(data,select=c(-sample,-x,-y)),.(group),unique)
@@ -462,9 +463,82 @@ StatInteractionError <- proto(ggplot2:::Stat, {
 	# User supplied function that takes complete data frame as input
     fun.data <- match.fun(fun.data)
     fun <- function(df, ...) fun.data(df$y, ...)
-	return(ggplot2:::summarise_by_x(data, fun, ...))
+	return(summarise_by_x(data, fun, ...))
   }
 })
+
+
+##################### Private functions ##################################
+# LICENCE: This code is from ggplot2's private functions
+
+uniquecols<-function (df) {
+    df <- df[1, sapply(df, function(x) length(unique(x)) == 1), drop = FALSE]
+    rownames(df) <- 1:nrow(df)
+    df
+}
+
+is.constant<-function (x) sapply(x, function(x) "I" %in% all.names(asOneSidedFormula(x)))
+
+if(getRversion() >= "2.15.1") utils::globalVariables(c("group","x"))
+summarise_by_x<-function (data, summary, ...){
+    summary <- ddply(data, .(group, x), summary, ...)
+    unique <- ddply(data, .(group, x), uniquecols)
+    unique$y <- NULL
+    merge(summary, unique, by = c("x", "group"))
+}
+
+finite.cases <- function(x) UseMethod("finite.cases")
+finite.cases.data.frame <- function(x) {
+  rowSums(vapply(x, is.finite, logical(nrow(x)))) == ncol(x)
+}
+
+if(getRversion() >= "2.15.1") utils::globalVariables(c("ps"))
+remove_missing <- function(df, na.rm=FALSE, vars = names(df), name="", finite = FALSE) {
+  vars <- intersect(vars, names(df))
+  if (name != "") name <- ps(" (", name, ")")
+  
+  if (finite) {
+    missing <- !finite.cases(df[, vars, drop = FALSE])
+    str <- "non-finite"
+  } else {
+    missing <- !complete.cases(df[, vars, drop = FALSE])
+    str <- "missing"
+  }
+  
+  if (any(missing)) {
+    df <- df[!missing, ]
+    if (!na.rm) warning("Removed ", sum(missing), " rows containing ", str, 
+      " values", name, ".", call. = FALSE)
+  }
+
+  df
+}
+
+rename_aes <- function(x) {
+  full <- match(names(x), .all_aesthetics)
+  names(x)[!is.na(full)] <- .all_aesthetics[full[!is.na(full)]]
+  rename(x, .base_to_ggplot)
+}
+
+.all_aesthetics<-c("adj","alpha","angle","bg","cex","col","color","colour","fg","fill"
+	,"group","hjust","label","linetype","lower","lty","lwd","max","middle","min","order"
+	,"pch","radius","sample","shape","size","srt","upper","vjust","weight","width","x"  
+	,"xend","xmax","xmin","xintercept","y","yend","ymax","ymin","yintercept","z")  
+
+.base_to_ggplot <- c(
+  "col"   = "colour",
+  "color" = "colour", 
+  "pch"   = "shape",
+  "cex"   = "size", 
+  "lty"   = "linetype", 
+  "lwd"   = "size",
+  "srt"   = "angle",
+  "adj"   = "hjust",
+  "bg"    = "fill",
+  "fg"    = "colour",
+  "min"   = "ymin", 
+  "max"   = "ymax"
+)
 
 
 ##################### Misc Plotting Functions ##############################

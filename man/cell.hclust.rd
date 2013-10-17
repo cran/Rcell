@@ -10,10 +10,12 @@
 \usage{
 
 cell.hclust(X,select,metric="cosangle",method="average",plot="heatmap",main=NULL
-				,heatmap.col=colorRampPalette(c("green", "black", "red"), space="rgb",bias=2)(128)
-				,cutree="none",cutree.args=list(h=0.5),plot.dendrogram=cutree\%in\%c("height","cluster","clusters")
-				,min.cluster.size=20,na.rm=FALSE,formula=ucid ~ variable + t.frame,subset=TRUE,exclude=NULL
-        ,QC.filter=TRUE,col.select=NULL,col.exclude=NULL,labRow=NA,...)				
+	,heatmap.col=colorRampPalette(c("green", "black", "red"),space="rgb",bias=2)(128)
+	,cutree="none",cutree.args=list(h=0.5)
+	,plot.dendrogram=cutree\%in\%c("height","cluster","clusters")
+	,min.cluster.size=20,na.rm=FALSE,formula=ucid ~ variable + t.frame,subset=TRUE
+	,exclude=NULL,QC.filter=TRUE,col.select=NULL,col.exclude=NULL
+	,labRow=NA,...)				
 }
 
 \arguments{

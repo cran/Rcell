@@ -1,7 +1,6 @@
 \name{subset}
 \alias{subset.cell.data}
 \alias{[.cell.data}
-\alias{remove.vars}
 
 \title{Subset a Cell Data Objects}
 
@@ -11,15 +10,12 @@
 \usage{
 
 \method{subset}{cell.data}(x,subset=TRUE,select="all",exclude=NULL,QC.filter=FALSE,...)
-
-remove.vars(X,select,exclude=NULL)
 }
 
 \arguments{
   \item{x}{ cell.data object }
-  \item{X}{ cell.data object }
   \item{subset}{a boolean vector of length equal to the number of rows of the
-  dataset, or a conditional statement using the dataset¥s variable, that
+  dataset, or a conditional statement using the dataset's variable, that
   specifies which registers should be included}
   \item{select}{character vector defining variables names to be included in the returned cell.data}
   \item{exclude}{character vector defining variables names to be excluded from the returned cell.data}

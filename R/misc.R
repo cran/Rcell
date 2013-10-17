@@ -54,4 +54,34 @@ paste_EC50_n <- function(fit,leading.str="",error.signif=2){
 	,sep="")
 }
 
+write.delim<-function(x, file = "", quote = FALSE, sep = "\t", row.names = FALSE,...){
+	write.table(x,file=file,quote=quote,sep=sep,row.names=row.names,...)
+}
+
+#*************************************************************************#
+#generic
+#Creates the generic function flatten
+flatten <- function(df,...) UseMethod("flatten")
+
+flatten.data.frame <- function(df,...){
+
+	dfList<-as.list(df)
+	dfNames<-names(df)
+	dfOut<-list()	
+
+	for(i in seq_len(length(dfList))){
+		o<-as.data.frame(dfList[[i]])
+		if(is.matrix(dfList[[i]])){
+			names(o)<-paste(colnames(dfList[[i]]),dfNames[i],sep=".")
+		} else {
+			names(o)<-dfNames[i]
+		}
+		dfOut[[i]]<-o
+	}
+
+	return(do.call(cbind,dfOut))
+}
+flatten.default<-flatten.data.frame
+
 revFactor <- function(x)factor(x, levels = rev(levels(x)),ordered=TRUE)
+

@@ -20,7 +20,8 @@
 get.cell.image(X,...)
 
 \method{get.cell.image}{cell.data}(X,subset=NULL,channel.subset=NULL,channel=NULL
-  ,time.course=TRUE,group=NULL,N=7,select=NULL,exclude=NULL,QC.filter=TRUE,box.size=20,...)
+	,time.course=TRUE,group=NULL,na.rm=TRUE,N=7,select=NULL,exclude=NULL
+	,QC.filter=TRUE,box.size=20,...)
 
 \method{get.cell.image}{data.frame}(X,box.size=20,contained.box=FALSE,bg.col=0,...)
 
@@ -45,6 +46,7 @@ is.cell.image(X)
   \item{channel}{character vector of channels to retrieve. If specified, defines the order of the channels.}
   \item{time.course}{boolean indicating if the desired image montage is a time course (i.e. several images for the same cell)}
   \item{group}{character vector or quoted names of variables who's interaction define the groups from which select \code{N} random cells.}
+  \item{na.rm}{boolean indicating if NAs should be removed.}
   \item{N}{Number of random cells to select from each group. If NULL all cells are selected}
   \item{select}{character vector defining variables names to be included in the returned cell.image object}
   \item{exclude}{character vector defining variables names to be excluded from the returned cell.image object}

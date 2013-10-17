@@ -9,7 +9,7 @@
 \description{funcionts that transforms a cell image object before plotting}
 \usage{
 
-cnormalize(X=NULL,normalize.group=c("channel"),...)
+cnormalize(X=NULL,normalize.group=c("channel"),ft=c(0,1),...)
 
 ciciply(X=NULL,group=c("pos","cellID","channel"),FUN=sum,MARGIN=c(1,2),warn=TRUE)
 
@@ -22,21 +22,19 @@ add.maj.min.axis(X=NULL,col=0.75,angle.var=NA,...)
 \arguments{
   \item{X}{cell.image object to transform}
   \item{normalize.group}{character vector indicating which variables should be used to group the images for normalization}
-  \item{\dots}{further arguments for methods}
+  \item{ft}{A numeric vector of 2 values, target minimum and maximum intensity values after normalization.}
   \item{group}{character vector indicating which variables should be used to group the images before applying FUN}
   \item{FUN}{function to apply to the grouped imaged matrix}
   \item{MARGIN}{a vector giving the subscripts which the function will be applied over. 1 indicates rows, 
   2 indicates columns, c(1, 2) indicates rows and columns.}
   \item{warn}{boolean indicating if warnings should be issued.}
-  
   \item{radii}{radii of the concentric circles to be plot around the nucleus found position. 
   The defaults correspond to Cell-ID default values}
   \item{pos.nucl.channel}{string indicating channel from which the nucleus coordinates should be extracted}
   \item{col}{color to use for the nucleus boundary}
-  
   \item{angle.var}{string indicating variable that measures the angle between the major axis and a horizontal 
   line (not calculated by Cell-ID)}
- 
+  \item{\dots}{further arguments for methods}
 }
 \details{
 

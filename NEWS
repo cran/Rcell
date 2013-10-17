@@ -1,3 +1,16 @@
+Version 1.2-6
+* Eliminted notes in R CMD check
+
+Version 1.2-5
+* Solved issue with BioC 2.13
+* Updated vignettes
+
+Version 1.2-4
+* New functions aggregateBy and flatten
+* New experimental functions create.cellID.mask and calculate.features (adapted from code by Rocio Espada)
+* New experimental functions load.cellProfiler.data
+* New functions drawCross, drawLine and drawText for cell.image objects
+
 Version 1.2-3
 * Rcell now depends on EBImage>=4.0.0
 * merge.cell.data can now join to cell.data objects together

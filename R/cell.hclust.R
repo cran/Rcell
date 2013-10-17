@@ -6,6 +6,7 @@
 #ToDo: add a RowSideColors argument
 #ToDo: add labRow argument. Use variable name to create correct strign vector.
 #ToDo: use heatmap.2 from gplots package when available
+if(getRversion() >= "2.15.1") utils::globalVariables(c("subtree","subtree.n.cell"))
 cell.hclust <- function(X,select
 				,metric="cosangle",method="average"
 				,plot="heatmap",main=NULL
