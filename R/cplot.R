@@ -25,8 +25,8 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
   
 	#dealing with cell.data or data.frame
   	if(!is.null(X)){			
-		if(is.cell.data(X)) data=X$data
-		else if(is.data.frame(X)) data=X
+		if(is.cell.data(X)) data <- X$data
+		else if(is.data.frame(X)) data <- X
 		else stop("First argument should be of class cell.data or data.frame, not ",class(X)[1])
 	
 		#filtering by QC variable
@@ -40,7 +40,7 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
   	arguments <- as.list(match.call()[-1])
 
 	#dealing with formula notation
-  	if(isTRUE(try(is.formula(x),silent=TRUE))){
+  	if(isTRUE(try(plyr::is.formula(x),silent=TRUE))){
   		if(length(x)==3){ # y~x
   			argnames=c(argnames,"y")
   			arguments$y=(y=x[[2]])
@@ -50,12 +50,13 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
   		} else stop("formula should be of the form y~x or ~x")	
   	}
 
-  	aesthetics <- compact(arguments[.all_aesthetics])
+  	aesthetics <- plyr::compact(arguments[.all_aesthetics])
   	aesthetics <- aesthetics[!is.constant(aesthetics)]
 
 	#defining aesthetics as dataset variables only
+	SPECIAL.AESTHETICS <- c("..density..","..count..","variable")
   	var_names <- .get_var_names(arguments,names(data),warn=TRUE)	
-  	aesthetics <- aesthetics[aesthetics %in% var_names | sapply(aesthetics,class)=="call"] 
+  	aesthetics <- aesthetics[aesthetics %in% var_names | sapply(aesthetics,class)=="call" | aesthetics %in% SPECIAL.AESTHETICS] 
 
   	aes_names <- names(aesthetics)
   	aesthetics <- rename_aes(aesthetics)
@@ -82,12 +83,13 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
 		}
 
 		#subsetting the data
-		if(!is.null(subset)) data=data[eval(subset,data,parent.frame(n=1)),]
+		if(!is.null(subset)) data <- data[eval(subset,data,parent.frame(n=1)),]
 		if(dim(data)[1]==0) stop("no data left after subset")
-		data=data[var_names] 
+		data <- data[var_names] 
 		
 		#removing NAs
 		if(isTRUE(na.rm)) data<-na.omit(data)
+		if(dim(data)[1]==0) stop("no data left after eliminating registers with NAs. Change na.rm to FALSE")
 
     	#transforming as.factor variables to factors
 		if(!is.null(as.factor)){
@@ -107,9 +109,9 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
   	if(class(sy)=="call")
 			if(sy[[1]]=="c"){
 				if(is.null(X)) stop("data required when using multiple \"y\" mapping\n")
-				data=melt(data,measure.vars=.get_var_names(sy,names(data)))
-				aesthetics$y=quote(value)
-				if(is.null(aesthetics$colour)) aesthetics$colour=quote(variable)
+				data <- melt(data,measure.vars=.get_var_names(sy,names(data)))
+				aesthetics$y <- quote(value)
+				if(is.null(aesthetics$colour)) aesthetics$colour <- quote(variable)
 				aes_names <- names(aesthetics)
 				aesthetics <- rename_aes(aesthetics)		
 			}
@@ -136,8 +138,6 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
 	#creating layer list
   	l=list()
 
-  	#browser()
-
   	# Add geoms/statistics
   	if (proto::is.proto(position)) position <- list(position)
   	mapply(function(g, s, ps) {
@@ -159,7 +159,7 @@ cplot <- function(X=NULL, x=NULL, subset=NULL, y=NULL, z=NULL, ...
 	#dealing with facets
   	if (is.null(facets)) {
     	l <- c(l,list(facet_null()))
-  	} else if (is.formula(facets) && length(facets) == 2) {
+  	} else if (plyr::is.formula(facets) && length(facets) == 2) {
     	l <- c(l,list(facet_wrap(facets)))
   	} else {
     	l <- c(l,list(facet_grid(facets = deparse(facets), margins = margins)))
@@ -340,152 +340,10 @@ zoom<-caxis
 xzoom <- function(xzoom=c(NA,NA),nx.breaks=7,...) Rcell::caxis(xzoom=xzoom,nx.breaks=nx.breaks,...)
 yzoom <- function(yzoom=c(NA,NA),ny.breaks=7,...) Rcell::caxis(yzoom=yzoom,ny.breaks=ny.breaks,...)
 
-
-##################### Stats for ggplot2 ####################################
-# LICENCE: This code is derived from stat-summary.r group ggplot2, and is licenced under the GNU General Public Licence, version 2.0 http://www.gnu.org/licenses/gpl-2.0.html
-# This code is a simple 'alpha' hack and carried no warranty.
-
-#ToDo: Solve fun.data issue
-stat_summaryGroup <- function (mapping = NULL, data = NULL, geom = "pointrange", position = "identity", ...) {
-  StatSummaryGroup$new(mapping = mapping, data = data, geom = geom, position = position, ...)
-}
- 
-StatSummaryGroup <- proto(ggplot2:::Stat, {
-  objname <- "summaryGroup"
- 
-  default_geom <- function(.) GeomPointrange
-  required_aes <- c("group", "x", "y")
-   
-  calculate_groups <- function(., data, scales, fun.data = NULL, fun.y = NULL, fun.ymax = NULL, fun.ymin = NULL, fun.x = NULL, fun.xmax=NULL, fun.xmin=NULL, na.rm = FALSE, ...) {
-    data <- remove_missing(data, na.rm, c("group", "x", "y"), name = "stat_summaryGroup")
-   
-    if (!missing(fun.data)) {
-      # User supplied function that takes complete data frame as input
-    	fun.data <- match.fun(fun.data)
-      fun <- function(df, ...) {
-        xdf<-fun.data(df$x,...)
-        xdf<-rename(xdf,c(y="x",ymin="xmin",ymax="xmax"))        
-        ydf<-fun.data(df$y,...)
-        return(cbind(xdf,ydf))
-      }
-    } else {
-      # User supplied individual vector functions
-      fs.x <- compact(list(xmin = fun.xmin, x = fun.x, xmax = fun.xmax))
-      fs.y <- compact(list(ymin = fun.ymin, y = fun.y, ymax = fun.ymax))
-     
-      fun <- function(df, ...) {
-        res.x <- llply(fs.x, function(f) do.call(f, list(df$x, ...)))
-        names(res.x) <- names(fs.x)
-        res.y <- llply(fs.y, function(f) do.call(f, list(df$y, ...)))
-        names(res.y) <- names(fs.y)
-        as.data.frame(list(res.x,res.y))
-      }
-    }
-    return(summarise_by_group(data, fun, ...))
-  }
-})
-
-if(getRversion() >= "2.15.1") utils::globalVariables(c("group"))
-summarise_by_group <- function(data, summaryFun, ...) {
-  summary.db <- ddply(data, .(group), summaryFun, ...)
-  unique.db <- ddply(data, .(group), uniquecols)
-  unique.db$y <- NULL
-  unique.db$x <- NULL
- 
-  return(merge(summary.db, unique.db, by = c("group")))
-}
- 
-stat_bootstrap <- function (mapping = NULL, data = NULL, geom = "pointrange", position = "identity", ...) {
-  StatBootstrap$new(mapping = mapping, data = data, geom = geom, position = position, ...)
-}
- 
-StatBootstrap <- proto(ggplot2:::Stat, {
-  objname <- "bootstrap"
- 
-  default_geom <- function(.) GeomPointrange
-  required_aes <- c("group", "x", "y", "sample")
-   
-  calculate_groups <- function(., data, scales, R=1000, conf.int=.95, na.rm = TRUE, ...) {
-	data <- remove_missing(data, na.rm, c("group", "x", "y", "sample"), name = "stat_bootstrap")
-	
-	bootDf<-ddply(subset(data,select=c(group,sample,x,y)),.(group),Rcell::timecourse_bootstrap,R=R,conf.int=conf.int,na.rm=na.rm)
-
-	bootDf<-join(bootDf
-				,ddply(subset(data,select=c(-sample,-x,-y)),.(group),unique)
-				,by="group")
-	return(bootDf)
-  }
-})
-
-timecourse_bootstrap<-function(df,R=1000,conf.int=.95,na.rm=TRUE){
-	df$group<-NULL
-	mdf<-melt(df,id.vars=c("sample","x")) #melted data frame
-	tcm<-cast(mdf,sample~x) #time course matrix		
-	N<-length(tcm$sample)
-	tcm$sample<-NULL
-	bsm<-rdply(R,colwise(mean)(tcm[sample(1:N,size=N,replace=TRUE),])) #bootstrap matrix
-	bsm$.n<-NULL
-	qbsm<-t(sapply(bsm,function(x)quantile(x,probs=c((1-conf.int)/2,1-(1-conf.int)/2),na.rm=na.rm))) #calculating confidence intervals
-	tcbs<- #time course boot strap data frame
-	data.frame(x=as.numeric(dimnames(qbsm)[[1]])
-			  ,y=as.numeric(colwise(mean)(tcm))	
-			  ,ymin=qbsm[,1]
-			  ,ymax=qbsm[,2])
-	return(tcbs)
-}
-
-stat_interactionError <- function (mapping = NULL, data = NULL, geom = "pointrange", position = "identity", ...) {
-  StatInteractionError$new(mapping = mapping, data = data, geom = geom, position = position, ...)
-}
- 
-StatInteractionError <- proto(ggplot2:::Stat, {
-  objname <- "interactionError"
- 
-  default_geom <- function(.) GeomPointrange
-  required_aes <- c("group", "x", "y", "sample")
-   
-  calculate_groups <- function(., data, scales, fun.data = "mean_cl_normal", na.rm = FALSE, ...) {
-    data <- remove_missing(data, na.rm, c("group", "x", "y"), name = "stat_interactionError")
-
-	#cheking for incomplete samples
-	agg.data<-aggregate(data$x,data[,c("group","sample")],FUN=length)
-	agg.data<-transformBy(agg.data,.(group),is.incomplete=x<max(x))
-	incomplete.fraction<-with(agg.data,sum(is.incomplete)/length(is.incomplete))
-	if(incomplete.fraction>1e-4) warning("stat_interactionError: ",round(100*incomplete.fraction,1)
-			,"% of the samples are incomplete within their group, "
-			,"the mean may vary as compared to stat_summary",call. = FALSE)
-
-	data <- transformBy(data,.(group),mean.y=mean(y)) #calculating mu
-	data <- transformBy(data,.(group,sample),sample.effect=mean(y)-mean.y)  #calculating alfa i
-	data <- transform(data,y=y-sample.effect) #substracting cell effect
-	data$mean.y<-NULL
-
-	# User supplied function that takes complete data frame as input
-    fun.data <- match.fun(fun.data)
-    fun <- function(df, ...) fun.data(df$y, ...)
-	return(summarise_by_x(data, fun, ...))
-  }
-})
-
-
 ##################### Private functions ##################################
 # LICENCE: This code is from ggplot2's private functions
 
-uniquecols<-function (df) {
-    df <- df[1, sapply(df, function(x) length(unique(x)) == 1), drop = FALSE]
-    rownames(df) <- 1:nrow(df)
-    df
-}
-
 is.constant<-function (x) sapply(x, function(x) "I" %in% all.names(asOneSidedFormula(x)))
-
-if(getRversion() >= "2.15.1") utils::globalVariables(c("group","x"))
-summarise_by_x<-function (data, summary, ...){
-    summary <- ddply(data, .(group, x), summary, ...)
-    unique <- ddply(data, .(group, x), uniquecols)
-    unique$y <- NULL
-    merge(summary, unique, by = c("x", "group"))
-}
 
 finite.cases <- function(x) UseMethod("finite.cases")
 finite.cases.data.frame <- function(x) {
@@ -517,7 +375,7 @@ remove_missing <- function(df, na.rm=FALSE, vars = names(df), name="", finite = 
 rename_aes <- function(x) {
   full <- match(names(x), .all_aesthetics)
   names(x)[!is.na(full)] <- .all_aesthetics[full[!is.na(full)]]
-  rename(x, .base_to_ggplot)
+  reshape::rename(x, .base_to_ggplot)
 }
 
 .all_aesthetics<-c("adj","alpha","angle","bg","cex","col","color","colour","fg","fill"
@@ -543,18 +401,6 @@ rename_aes <- function(x) {
 
 ##################### Misc Plotting Functions ##############################
 
-formatter_log10 <- function(x,...){
-	pow<-floor(log10(x))	
-	f<-x/(10^pow)
-	parse(text=paste(f," %*% 10^",pow,sep=""))
-}
-
-fortify.Image <- function(model, data, ...) {
-colours <- channel(model, "x11")[,]
-colours <- colours[, rev(seq_len(ncol(colours)))]
-melt(colours, c("x", "y"))
-}
-
 vplayout <- function(x, y)
 viewport(layout.pos.row = x, layout.pos.col = y)
 
@@ -577,6 +423,7 @@ theme_Rcell <- function() {
 		,legend.background =  element_rect(colour=NA)
 		,legend.key =  element_rect(colour = NA)
 		,legend.box = NULL
+		,panel.border=element_rect(fill=NA,color="black")
 	)
 }
 

@@ -12,8 +12,8 @@
 \tabular{ll}{
 Package: \tab Rcell\cr
 Type: \tab Package\cr
-Version: \tab \Sexpr[stage=build]{packageDescription("Rcell")$Version} \cr
-Date: \tab \Sexpr[stage=build]{packageDescription("Rcell")$Date} \cr
+Version: \tab 1.3-2 \cr
+Date: \tab 2015-06-04 \cr
 License: \tab GPL-2\cr
 }
 }
@@ -73,7 +73,6 @@ Alan Bush
 Maintainer: Alan Bush <abush@fbmc.fcen.uba.ar>
 }
 \references{
-\url{http://www.df.uba.ar/lbms}
 \url{http://sourceforge.net/projects/cell-id}
 }
 \keyword{ Cell-ID }

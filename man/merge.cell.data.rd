@@ -43,15 +43,18 @@ load.pdata(X,pdata="pdata.txt",by=NULL,path=getwd())
 \author{ Alan Bush }
 \seealso{ \code{\link{merge}} }
 \examples{
-#load example dataset
-data(ACL394)
-#creating data frame with information about each poistion
-#AF.nM: dose of alpha-factor yeast pheromone in nM
-pdata<-data.frame(pos=1:35,AF.nM=rep(c(1.25,2.5,5,10,20),each=7))
+if(require(RcellData)){
 
-#merging the data frame with the cell.data object
-X<-merge(X,pdata)
+  #load example dataset
+  data(ACL394)
+  #creating data frame with information about each poistion
+  #AF.nM: dose of alpha-factor yeast pheromone in nM
+  pdata<-data.frame(pos=1:35,AF.nM=rep(c(1.25,2.5,5,10,20),each=7))
+  
+  #merging the data frame with the cell.data object
+  X<-merge(X,pdata)
 
+}
 }
 
 \keyword{IO}

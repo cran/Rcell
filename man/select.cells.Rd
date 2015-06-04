@@ -35,18 +35,20 @@ select.cells(X, subset = TRUE, n.tot.subset=NULL ,QC.filter=TRUE)
 \author{ Alan Bush}
 \seealso{\code{\link{intersect}},\code{\link{union}},\code{\link{setdiff}} }
 \examples{
-#load example dataset
-data(ACL394)
+if(require(RcellData)){
 
-#select cells that have f.tot.y>1e7 in at least one t.frame
-c1<-select.cells(X,f.tot.y>1e7)
-cplot(X,f.tot.y~t.frame,color="gray",size=0.5) +  #plotting the cells
-  clayer(X,f.tot.y~t.frame,color=ucid,geom="line",subset=ucid\%in\%c1)
-
-#select cells that have f.tot.y<6e5 in all t.frames
-c1<-select.cells(X,f.tot.y<6e5,n.tot.subset=n.tot==14)  
-cplot(X,f.tot.y~t.frame,color="gray",size=0.5) +  #plotting the cells
-  clayer(X,f.tot.y~t.frame,color=ucid,geom="line",subset=ucid\%in\%c1)
-
+  #load example dataset
+  data(ACL394)
+  
+  #select cells that have f.tot.y>1e7 in at least one t.frame
+  c1<-select.cells(X,f.tot.y>1e7)
+  cplot(X,f.tot.y~t.frame,color="gray",size=0.5) +  #plotting the cells
+    clayer(X,f.tot.y~t.frame,color=ucid,geom="line",subset=ucid\%in\%c1)
+  
+  #select cells that have f.tot.y<6e5 in all t.frames
+  c1<-select.cells(X,f.tot.y<6e5,n.tot.subset=n.tot==14)  
+  cplot(X,f.tot.y~t.frame,color="gray",size=0.5) +  #plotting the cells
+    clayer(X,f.tot.y~t.frame,color=ucid,geom="line",subset=ucid\%in\%c1)
+}
 }
 \keyword{manip}

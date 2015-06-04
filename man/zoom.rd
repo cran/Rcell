@@ -40,13 +40,16 @@ xzoom and yzoom are convenient functions to specify only one of the limits.
 \author{ Alan Bush}
 \seealso{\code{\link{cplot}},\code{\link{limits}}}
 \examples{
-#load example dataset
-data(ACL394)
+if(require(RcellData)){
 
-#zoom in the y axis
-cplotmeans(X,f.tot.y~t.frame,color=pos) + zoom(y=c(0,7e6))
-
-#define plotting region and ticks
-cplotmeans(X,f.tot.y~t.frame,color=pos) + caxis(y=c(0,7e6),x=c(0,13),nx=14,expand.x=c(-.75,.75))
+  #load example dataset
+  data(ACL394)
+  
+  #zoom in the y axis
+  cplotmeans(X,f.tot.y~t.frame,color=pos) + zoom(y=c(0,7e6))
+  
+  #define plotting region and ticks
+  cplotmeans(X,f.tot.y~t.frame,color=pos) + caxis(y=c(0,7e6),x=c(0,13),nx=14,expand.x=c(-.75,.75))
+}
 }
 \keyword{aplot}

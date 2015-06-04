@@ -32,7 +32,7 @@
 \seealso{plot}
 \examples{
 
-if(interactive()&require(EBImage,quietly=TRUE)){
+if(interactive()&require(EBImage,quietly=TRUE)&require(RcellData)){
 
   #load example dataset
   data(ACL394filtered)

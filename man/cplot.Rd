@@ -111,41 +111,43 @@ H. Wickham. ggplot2: elegant graphics for data analysis. Springer New York, 2009
 \author{Alan Bush}
 \seealso{ \code{\link{qplot}},\code{\link{ggplot}} }
 \examples{
-#load example dataset
-data(ACL394)
+if(require(RcellData)){
 
-#plotting YFP vs CFP fluorescence
-cplot(X,f.tot.y~f.tot.c)
-
-#subset the data before plotting and color by pos variable
-cplot(X,f.tot.y~f.tot.c,subset=t.frame==13,color=pos)
-
-#map the size aesthetic to the the cell area a.tot
-cplot(X,f.tot.y~f.tot.c,subset=t.frame==13,color=pos,size=a.tot)
-
-#adding description of the positions for futher plotting 
-#	(AF.nM: dose of alpha-factor yeast pheromone in nM)
-X<-merge(X,data.frame(pos=1:35,AF.nM=rep(c(1.25,2.5,5,10,20),each=7)))
-
-#plot time course for f.tot.y and facet by pheromone dose
-cplot(X,f.tot.y~t.frame,facets=~AF.nM)
-
-#jittering the points to reduce overplotting
-cplot(X,f.tot.y~t.frame,facets=~AF.nM,size=0.5,geom="jitter")
-
-#adding per t.frame mean to prevoius plot
-cplot(X,f.tot.y~t.frame,facets=~AF.nM,size=0.5,geom="jitter")+
-  clayermean(color="red")
-
-#plot means for each dose in the same plot
-cplotmean(X,f.tot.y~t.frame,color=AF.nM,as.factor="AF.nM",yzoom=c(0,6.2e6))
-
-#plotting histograms
-cplot(X,~f.tot.y)
-
-#use position 'dodge' instead of 'stack'
-cplot(X,~f.tot.y,fill=AF.nM,as.factor="AF.nM",position="dodge")
-
+  #load example dataset
+  data(ACL394)
+  
+  #plotting YFP vs CFP fluorescence
+  cplot(X,f.tot.y~f.tot.c)
+  
+  #subset the data before plotting and color by pos variable
+  cplot(X,f.tot.y~f.tot.c,subset=t.frame==13,color=pos)
+  
+  #map the size aesthetic to the the cell area a.tot
+  cplot(X,f.tot.y~f.tot.c,subset=t.frame==13,color=pos,size=a.tot)
+  
+  #adding description of the positions for futher plotting 
+  #	(AF.nM: dose of alpha-factor yeast pheromone in nM)
+  X<-merge(X,data.frame(pos=1:35,AF.nM=rep(c(1.25,2.5,5,10,20),each=7)))
+  
+  #plot time course for f.tot.y and facet by pheromone dose
+  cplot(X,f.tot.y~t.frame,facets=~AF.nM)
+  
+  #jittering the points to reduce overplotting
+  cplot(X,f.tot.y~t.frame,facets=~AF.nM,size=0.5,geom="jitter")
+  
+  #adding per t.frame mean to prevoius plot
+  cplot(X,f.tot.y~t.frame,facets=~AF.nM,size=0.5,geom="jitter")+
+    clayermean(color="red")
+  
+  #plot means for each dose in the same plot
+  cplotmean(X,f.tot.y~t.frame,color=AF.nM,as.factor="AF.nM",yzoom=c(0,6.2e6))
+  
+  #plotting histograms
+  cplot(X,~f.tot.y)
+  
+  #use position 'dodge' instead of 'stack'
+  cplot(X,~f.tot.y,fill=AF.nM,as.factor="AF.nM",position="dodge")
+}
 }
 \keyword{ hplot }
 \keyword{ aplot }

@@ -41,21 +41,25 @@
 \author{ Alan Bush }
 \seealso{ \code{\link{subset}}, \code{\link{summary.cell.data}} }
 \examples{
-#load example dataset
-data(ACL394)
 
-#subset the cell.data by pos
-X1<-subset(X,pos==1)
-X1<-X[pos==1]
+if(require(RcellData)){
 
-#subset by t.frame and select variables
-#note the use of keywords and pattern matching to select the variables
-X.t13<-X[t.frame==13,c("morpho","*.y","f.tot.c")]
-summary(X.t13) #take a look at the new cell.data object
+  #load example dataset
+  data(ACL394)
+  
+  #subset the cell.data by pos
+  X1<-subset(X,pos==1)
+  X1<-X[pos==1]
+  
+  #subset by t.frame and select variables
+  #note the use of keywords and pattern matching to select the variables
+  X.t13<-X[t.frame==13,c("morpho","*.y","f.tot.c")]
+  summary(X.t13) #take a look at the new cell.data object
+  
+  #eliminate registers that didn't pass the QC filter
+  X<-subset(X,QC.filter=TRUE)
 
-#eliminate registers that didn't pass the QC filter
-X<-subset(X,QC.filter=TRUE)
-
+}
 }
 \keyword{manip}
 

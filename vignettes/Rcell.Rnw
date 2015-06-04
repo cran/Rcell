@@ -35,7 +35,7 @@ foo <- packageDescription("Rcell")
 \verb@Rcell@ provides functions to load, manipulate and visualize microscopy-based cytometry datasets in \verb@R@. It was originally designed to work with \verb@Cell-ID@ (\cite{acl2005}, \cite{cpmcb2012}), but can also load datasets from other segmentation softwares. These datasets can contain hundreds of different variables (columns) and thousands of registers (rows). An analysis of the dataset usually includes filtering it for spurious or badly found cells, creating new (normalized) variables from existing ones and creating plots and images to visualize the data. You can download the latest version of \verb@Rcell@ (and the required dependency \verb@EBImage@) by typing in \verb@R@
 
 <<eval=FALSE,echo=TRUE>>=
-install.packages('Rcell')
+install.packages(c("Rcell","RcellData"))
 source("http://bioconductor.org/biocLite.R")
 biocLite("EBImage")
 @
@@ -48,7 +48,7 @@ library(Rcell)
 
 Note that installing and loading a package are two different things, and you have to load the package using \verb@library@ at the begging of every session, even if you have just installed it. 
 
-In this document I will guide you through a standard analysis of a dataset.
+In this document we will guide you through a standard analysis of a dataset.
 
 \section{Load Cell-ID Data to R}
 
@@ -63,10 +63,12 @@ X<-load.cellID.data()
 Note the use of the double backslash (\verb@\\@) when setting the working directory. This is required because the backslash (\verb@\@) is a reserved character in \verb@R@. You can also use a single forward-slash (\verb@/@) instead of the double backslash. \verb@load.cellID.data@ returns a object of class \verb@cell.data@ that has to be assign (\verb@<-@) to a variable. Throughout this tutorial will call this object \verb@X@.
 If you don't have a experiment to analyze you can still go through the tutorial with the example dataset (\cite{acl2005}) included in the package. To load this dataset just type
 <<echo=TRUE,eval=TRUE>>=
+library(RcellData)
 data(ACL394)
 @ 
 
 % <<include=FALSE,echo=FALSE>>=
+% library(RcellData)
 % data(ACL394data)
 % X$images$path<-factor(system.file('img', package='Rcell'))
 % X$data$QC<-rep(TRUE,times=dim(X$data)[1])
@@ -235,6 +237,8 @@ if(require(EBImage,quietly=TRUE)){
   writeImage(
 <<img4>>
   ,'fig/Rcell-img4.jpg', quality=80)
+} else {
+	file.copy(paste0(system.file('img', package='Rcell'),'/Rcell-img4.jpg'),'fig/Rcell-img4.jpg')
 }
 @
 

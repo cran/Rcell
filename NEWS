@@ -1,5 +1,21 @@
+Version 1.3-2
+* select.cells removes NAs from returned value
+
+Version 1.3-0
+* Example dataset war removed from this package and placed in RcellData
+* EBImage is now suggested and not required
+* Rcell was simplified by removing functions not normally used. These functions were placed in a new package RcellExtra (http://sourceforge.net/projects/cell-id/files/Rcell/)
+* Several suggested packages required for the removed functions were removed as well  
+
+Version 1.2-9
+* improved load.cell.data when loading incomplete datasets
+* img.desc of cell.image objects now has the x and y coordinates of each tile
+
+Version 1.2-7
+* exported append.cor.prj
+
 Version 1.2-6
-* Eliminted notes in R CMD check
+* Eliminated notes in R CMD check
 
 Version 1.2-5
 * Solved issue with BioC 2.13

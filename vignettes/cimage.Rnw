@@ -42,21 +42,22 @@ vignette('Rcell')
 
 \section{Display cell images}
 
-If you haven't done so, load the \textbf{Rcell} package and the filtered example dataset with 
+If you haven't done so, load the \textbf{RcellData} package and the filtered example dataset with 
 
 <<echo=TRUE,eval=FALSE>>=
-library(Rcell) 
+library(RcellData) 
 data(ACL394filtered)
 @
 
 <<include=FALSE,echo=FALSE,eval=TRUE>>=
 library(Rcell)
+library(RcellData)
 is.EBImage<-require(EBImage,quietly=TRUE)
 data(ACL394data)
-X$images$path<-factor(system.file('img', package='Rcell'))
+X$images$path<-factor(system.file('img', package='RcellData'))
 @
 
-When analyzing a dataset, you usually want to take a look at the images that correspond to each data point. This helps to interpret the data and gives you confidence on the result. To visualize a random set of cells from a image, you have to specify position, channel and time frame (if you are dealing with a time course). For example, to visualize some BF images of cells from position 29 and time frame 11 use the following command\footnote{To save space, only some images of the example datatset were included in the package. Changing the \textit{subset} or the \textit{channel} arguments might result in errors if the specified images are not found.}. 
+When analyzing a dataset, you usually want to take a look at the images that correspond to each data point. This helps to interpret the data and gives you confidence on the result. To visualize a random set of cells from a image, you have to specify position, channel and time frame (if you are dealing with a time course). For example, to visualize some BF images of cells from position 29 and time frame 11 use the following command \footnote{To save space, only some images of the example datatset were included in the package. Changing the \textit{subset} or the \textit{channel} arguments might result in errors if the specified images are not found.}. 
 
 <<img1,include=TRUE,eval=FALSE>>=
 cimage(X, subset=pos==29&t.frame==11, channel="BF", N=9)
@@ -65,10 +66,13 @@ cimage(X, subset=pos==29&t.frame==11, channel="BF", N=9)
 This function displays the image shown in Figure~\ref{fig:img1}, and returns a \verb@Image@ object that can be saved to disk using the \verb@writeImage@ function. 
 
 <<include=FALSE,echo=FALSE,eval=TRUE>>=
-if(is.EBImage) 
+if(is.EBImage){ 
   writeImage(
 <<img1>>  
   , 'fig/cimage-img1.jpg', quality=80)
+} else {
+	file.copy(paste0(system.file('img', package='Rcell'),'/cimage-img1.jpg'),'fig/cimage-img1.jpg')
+}
 @
 
 \begin{figure}
@@ -87,10 +91,13 @@ cimage(X, channel~t.frame, subset=pos==29&cellID==5, channel=c("BF","YFP"))
 @
 
 <<include=FALSE,echo=FALSE,eval=TRUE>>=
-if(is.EBImage) 
+if(is.EBImage){ 
   writeImage(
 <<img2>>  
   , 'fig/cimage-img2.jpg', quality=80)
+} else {
+	file.copy(paste0(system.file('img', package='Rcell'),'/cimage-img2.jpg'),'fig/cimage-img2.jpg')
+}
 @
 
 \begin{figure}
@@ -108,10 +115,13 @@ cimage(X, cell+channel~t.frame, subset=pos==29, channel=c("BF","YFP"), N=4)
 @
 
 <<include=FALSE,echo=FALSE,eval=TRUE>>= 
-if(is.EBImage)
+if(is.EBImage){
   writeImage(
 <<img3>>  
   , 'fig/cimage-img3.jpg', quality=80)
+} else {
+	file.copy(paste0(system.file('img', package='Rcell'),'/cimage-img3.jpg'),'fig/cimage-img3.jpg')
+}
 @
 
 \begin{figure}
@@ -132,10 +142,13 @@ cimage(X, cell~channel+t.frame, subset=pos==29, N=4,
 @
  
 <<include=FALSE,echo=FALSE,eval=TRUE>>= 
-if(is.EBImage)
+if(is.EBImage){
   writeImage(
 <<img4>>  
   , 'fig/cimage-img4.jpg', quality=80)
+} else {
+	file.copy(paste0(system.file('img', package='Rcell'),'/cimage-img4.jpg'),'fig/cimage-img4.jpg')
+}
 @
 
 
@@ -159,10 +172,13 @@ cimage(X, cell~channel, facets=~pos, subset=t.frame==11&pos%in%c(1,8,15,22,29),
 @
 
 <<include=FALSE,echo=FALSE,eval=TRUE>>= 
-if(is.EBImage)
+if(is.EBImage){
   writeImage(
 <<img5>>  
   , 'fig/cimage-img5.jpg', quality=80)
+} else {
+	file.copy(paste0(system.file('img', package='Rcell'),'/cimage-img5.jpg'),'fig/cimage-img5.jpg')
+}
 @
  
 \begin{figure}
@@ -184,10 +200,13 @@ cimage(X, cut(f.tot.y,20)~cut(fft.stat,20), facets=~channel, channel=c("YFP","BF
 @
 
 <<include=FALSE,echo=FALSE,eval=TRUE>>=
-if(is.EBImage) 
+if(is.EBImage){ 
   writeImage(
 <<img6>>  
   , 'fig/cimage-img6.jpg', quality=80)
+} else {
+	file.copy(paste0(system.file('img', package='Rcell'),'/cimage-img6.jpg'),'fig/cimage-img6.jpg')
+}
 @
 
 You can compare the image layout with a scatter plot side by side. This can hep you interpret the scatter plot (Figure~\ref{fig:f07}). 
@@ -203,7 +222,7 @@ cplot(X, f.tot.y~fft.stat, subset= t.frame==11 & pos %in% c(1,8,15,22,29))
 \label{fig:img6}
 \end{center}
 \end{figure}
-  
+
 
 \setkeys{Gin}{width=0.5\textwidth}
 \SweaveOpts{png = FALSE, pdf = TRUE}

@@ -17,7 +17,7 @@ foo <- packageDescription("Rcell")
 ###################################################
 ### code chunk number 3: Rcell.Rnw:37-40 (eval = FALSE)
 ###################################################
-## install.packages('Rcell')
+## install.packages(c("Rcell","RcellData"))
 ## source("http://bioconductor.org/biocLite.R")
 ## biocLite("EBImage")
 
@@ -36,25 +36,26 @@ library(Rcell)
 
 
 ###################################################
-### code chunk number 6: Rcell.Rnw:65-66
+### code chunk number 6: Rcell.Rnw:65-67
 ###################################################
+library(RcellData)
 data(ACL394)
 
 
 ###################################################
-### code chunk number 7: Rcell.Rnw:89-90
+### code chunk number 7: Rcell.Rnw:91-92
 ###################################################
 summary(X)
 
 
 ###################################################
-### code chunk number 8: Rcell.Rnw:93-94 (eval = FALSE)
+### code chunk number 8: Rcell.Rnw:95-96 (eval = FALSE)
 ###################################################
 ## help(ACL394)
 
 
 ###################################################
-### code chunk number 9: Rcell.Rnw:97-98 (eval = FALSE)
+### code chunk number 9: Rcell.Rnw:99-100 (eval = FALSE)
 ###################################################
 ## vignette("Cell-ID-vars")
 
@@ -66,7 +67,7 @@ cplot(X, f.tot.y~t.frame, subset=pos==1)
 
 
 ###################################################
-### code chunk number 11: Rcell.Rnw:110-113
+### code chunk number 11: Rcell.Rnw:112-115
 ###################################################
 print(
 cplot(X, f.tot.y~t.frame, subset=pos==1)
@@ -80,7 +81,7 @@ cplot(X, f.tot.y~t.frame, facets=~pos)
 
 
 ###################################################
-### code chunk number 13: Rcell.Rnw:131-134
+### code chunk number 13: Rcell.Rnw:133-136
 ###################################################
 print(
 cplot(X,f.tot.y~t.frame,facets=~pos)+ facet_wrap(~pos,ncol=5)
@@ -88,25 +89,25 @@ cplot(X,f.tot.y~t.frame,facets=~pos)+ facet_wrap(~pos,ncol=5)
 
 
 ###################################################
-### code chunk number 14: Rcell.Rnw:182-183 (eval = FALSE)
+### code chunk number 14: Rcell.Rnw:184-185 (eval = FALSE)
 ###################################################
 ## X<-load.pdata(X)
 
 
 ###################################################
-### code chunk number 15: Rcell.Rnw:185-186
+### code chunk number 15: Rcell.Rnw:187-188
 ###################################################
 X<-merge(X,pdata,by="pos")
 
 
 ###################################################
-### code chunk number 16: Rcell.Rnw:193-194
+### code chunk number 16: Rcell.Rnw:195-196
 ###################################################
 X<-transform(X, f.total.y=f.tot.y-f.bg.y*a.tot)
 
 
 ###################################################
-### code chunk number 17: Rcell.Rnw:201-202 (eval = FALSE)
+### code chunk number 17: Rcell.Rnw:203-204 (eval = FALSE)
 ###################################################
 ## vignette('transform')
 
@@ -118,7 +119,7 @@ cplot(X, ~fft.stat, binwidth=0.05)
 
 
 ###################################################
-### code chunk number 19: Rcell.Rnw:217-220
+### code chunk number 19: Rcell.Rnw:219-222
 ###################################################
 print(
 cplot(X, ~fft.stat, binwidth=0.05)
@@ -132,29 +133,31 @@ cplot(X, ~fft.stat, binwidth=0.05)
 
 
 ###################################################
-### code chunk number 21: Rcell.Rnw:233-238
+### code chunk number 21: Rcell.Rnw:235-242
 ###################################################
 if(require(EBImage,quietly=TRUE)){
   writeImage(
 cimage(X, channel="BF.out", subset=fft.stat>0.5 & t.frame==11 & pos%in%c(1,8,15,22,29), N=5)
   ,'fig/Rcell-img4.jpg', quality=80)
+} else {
+	file.copy(paste0(system.file('img', package='Rcell'),'/Rcell-img4.jpg'),'fig/Rcell-img4.jpg')
 }
 
 
 ###################################################
-### code chunk number 22: Rcell.Rnw:251-252 (eval = FALSE)
+### code chunk number 22: Rcell.Rnw:255-256 (eval = FALSE)
 ###################################################
 ## vignette('cimage')
 
 
 ###################################################
-### code chunk number 23: Rcell.Rnw:257-258
+### code chunk number 23: Rcell.Rnw:261-262
 ###################################################
 X<-QC.filter(X,fft.stat<0.5)
 
 
 ###################################################
-### code chunk number 24: Rcell.Rnw:263-265
+### code chunk number 24: Rcell.Rnw:267-269
 ###################################################
 X<-update_n.tot(X)
 X<-QC.filter(X,n.tot==14)
@@ -173,7 +176,7 @@ cplot(X, ~a.tot, binwidth=25)
 
 
 ###################################################
-### code chunk number 27: Rcell.Rnw:285-293
+### code chunk number 27: Rcell.Rnw:289-297
 ###################################################
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(1, 2)))
@@ -198,7 +201,7 @@ cplot(X, f.tot.y~f.tot.c, color=factor(AF.nM), size=a.tot, alpha=0.5, subset=t.f
 
 
 ###################################################
-### code chunk number 30: Rcell.Rnw:317-325
+### code chunk number 30: Rcell.Rnw:321-329
 ###################################################
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(1, 2)))
@@ -211,7 +214,7 @@ cplot(X, f.tot.y~f.tot.c, color=factor(AF.nM), size=a.tot, alpha=0.5, subset=t.f
 
 
 ###################################################
-### code chunk number 31: Rcell.Rnw:336-337 (eval = FALSE)
+### code chunk number 31: Rcell.Rnw:340-341 (eval = FALSE)
 ###################################################
 ## vignette('cplot')
 

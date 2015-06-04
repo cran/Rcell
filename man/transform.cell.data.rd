@@ -59,22 +59,25 @@ transformBy(`_data`,.by,...)
 \author{ Alan Bush }
 \seealso{ \code{\link{transform}} }
 \examples{
-#load example dataset
-data(ACL394filtered)
+if(require(RcellData)){
 
-#creating a new variable
-X<-transform(X,f.total.y=f.tot.y-a.tot*f.local.bg.y)
+  #load example dataset
+  data(ACL394filtered)
+  
+  #creating a new variable
+  X<-transform(X,f.total.y=f.tot.y-a.tot*f.local.bg.y)
+  
+  #create a new variable normalizing by position
+  X<-transformBy(X,.(pos),norm.f.total.y=f.total.y/mean(f.total.y))
+  
+  #create a new delta variable in sigle cells
+  X<-transformBy(X,.(pos,cellID),delta.f.total.y=f.total.y-f.total.y[t.frame==0])
+  
+  #transformBy can also be used on a data.frame
+  df<-aggregate(X,f.total.y~t.frame+pos) #creates a aggregate data.frame from X
+  df<-transformBy(df,.(pos),delta.f.total.y=f.total.y-f.total.y[t.frame==0])
 
-#create a new variable normalizing by position
-X<-transformBy(X,.(pos),norm.f.total.y=f.total.y/mean(f.total.y))
-
-#create a new delta variable in sigle cells
-X<-transformBy(X,.(pos,cellID),delta.f.total.y=f.total.y-f.total.y[t.frame==0])
-
-#transformBy can also be used on a data.frame
-df<-aggregate(X,f.total.y~t.frame+pos) #creates a aggregate data.frame from X
-df<-transformBy(df,.(pos),delta.f.total.y=f.total.y-f.total.y[t.frame==0])
-
+}
 }
 \keyword{manip}
 \keyword{methods}

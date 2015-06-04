@@ -44,7 +44,6 @@ aggregateBy(x,.by,...)
   \code{\link{aggregate}} is a generic function. This version applies to cell.data objects. Two notations are allowed. 
   If the second argument \code{form.by} is a formula it should be of the form
  \code{cbind(measure.var1,measure.var2)~group.var1+group.var2}
- Note that this notations differs from the one used by \code{\link{reshape.cell.data}}
   If the second argument \code{form.by} are quoted variables or a character vector with variable names, these variables are taken as group.vars to split the dataset. The measure variables over which to apply FUN should be selected using the \code{select} and \code{exclude} arguments.
  
  \code{aggregateBy} works as aggregate, but forces the use of quoted variables (or variable names) to define the groups by which the dataset is going to be split. This function also has a implementation for data frames. \code{aggregateBy} calls \code{flatten} before returning the data frame.
@@ -56,37 +55,41 @@ aggregateBy(x,.by,...)
 \author{ Alan Bush }
 \seealso{ \code{\link{aggregate}} }
 \examples{
-#load example dataset
-data(ACL394filtered)
+if(require(RcellData)){
+ 
+  #load example dataset
+   data(ACL394filtered)
+  
+  #aggregate by pos and calculate mean f.tot.y
+  aggregate(X,.(pos),select="f.tot.y")
+  
+  #do the same aggregation using the formula notation
+  aggregate(X,f.tot.y~pos)
+  
+  #aggregate by pos and t.frame
+  aggregate(X,.(pos,t.frame),select="f.tot.y")
+  aggregate(X,f.tot.y~pos+t.frame) #formula notation
+  
+  #aggregate several variables
+  aggregate(X,.(pos),select="f.tot.?") # using wildcard pattern matching
+  aggregate(X,cbind(f.tot.y,f.tot.c)~pos) #formula notation
+  
+  #subset before aggregating
+  aggregate(X,.(pos),select="f.tot.y",subset=t.frame==13)
+  
+  #calculate the median instead of the mean
+  aggregate(X,.(pos),select="f.tot.y",FUN=median)
+  
+  #dont apply the QC filter to the daset before aggregation
+  aggregate(X,.(pos),select="f.tot.y",QC.filter=FALSE)
+  
+  #use aggregateBy on a cell.data object
+  (agg<-aggregateBy(X,.(pos,AF.nM,t.frame),select="f.tot.y"))
+  
+  #use aggregateBy on a data.frame, calculate mean and sd among position means
+  aggregateBy(agg,.(AF.nM,t.frame),select="f.tot.y",FUN=funstofun(mean,sd))
 
-#aggregate by pos and calculate mean f.tot.y
-aggregate(X,.(pos),select="f.tot.y")
-
-#do the same aggregation using the formula notation
-aggregate(X,f.tot.y~pos)
-
-#aggregate by pos and t.frame
-aggregate(X,.(pos,t.frame),select="f.tot.y")
-aggregate(X,f.tot.y~pos+t.frame) #formula notation
-
-#aggregate several variables
-aggregate(X,.(pos),select="f.tot.?") # using wildcard pattern matching
-aggregate(X,cbind(f.tot.y,f.tot.c)~pos) #formula notation
-
-#subset before aggregating
-aggregate(X,.(pos),select="f.tot.y",subset=t.frame==13)
-
-#calculate the median instead of the mean
-aggregate(X,.(pos),select="f.tot.y",FUN=median)
-
-#dont apply the QC filter to the daset before aggregation
-aggregate(X,.(pos),select="f.tot.y",QC.filter=FALSE)
-
-#use aggregateBy on a cell.data object
-(agg<-aggregateBy(X,.(pos,AF.nM,t.frame),select="f.tot.y"))
-
-#use aggregateBy on a data.frame, calculate mean and sd among position means
-aggregateBy(agg,.(AF.nM,t.frame),select="f.tot.y",FUN=funstofun(mean,sd))
+}
 }
 \keyword{manip}
 \keyword{methods}

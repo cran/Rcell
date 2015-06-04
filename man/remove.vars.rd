@@ -29,19 +29,22 @@ remove.vars(X,select,exclude=NULL)
 \author{ Alan Bush }
 \seealso{ \code{\link{subset}}, \code{\link{summary.cell.data}} }
 \examples{
-#load example dataset
-data(ACL394)
+if(require(RcellData)){
 
-#remove a variable
-X<-remove.vars(X,select="f.vacuole.y")
-
-#remove all background variables
-X<-remove.vars(X,select="*bg*")
-
-#remove all nuclear variables, except for f.nucl.y
-X<-remove.vars(X,select="*nucl*",exclude="f.nucl.y")
-
-summary(X)
+  #load example dataset
+  data(ACL394)
+  
+  #remove a variable
+  X<-remove.vars(X,select="f.vacuole.y")
+  
+  #remove all background variables
+  X<-remove.vars(X,select="*bg*")
+  
+  #remove all nuclear variables, except for f.nucl.y
+  X<-remove.vars(X,select="*nucl*",exclude="f.nucl.y")
+  
+  summary(X)
+}
 }
 \keyword{manip}
 

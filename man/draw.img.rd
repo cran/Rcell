@@ -43,7 +43,7 @@ drawText(img,labels,x=NULL,y=NULL,adj=c(0,0),reuseLabels=TRUE,col=NULL)
 \seealso{\code{\link{cimage}}}
 \examples{
 
-if(require(EBImage,quietly=TRUE)&interactive()){ 
+if(require(EBImage,quietly=TRUE)&interactive()&require(RcellData)){ 
 
   data(ACL394filtered)
   img<-show.img(X,pos=1,channel="BF",cross=FALSE)

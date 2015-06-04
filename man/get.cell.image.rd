@@ -8,6 +8,7 @@
 \alias{print.summary.cell.image}
 \alias{print.cell.image}
 \alias{img.desc}
+\alias{img.desc<-}
 \alias{is.cell.image}
 
 \title{Get Cells Images}
@@ -35,6 +36,8 @@ get.cell.image(X,...)
 
 img.desc(X)
 
+img.desc(X)<- value
+                    
 is.cell.image(X)
 
 }
@@ -59,7 +62,7 @@ is.cell.image(X)
   \item{object}{cell.image object to summarize}
   \item{x}{object to print}
   \item{nx}{number of columns in the image tile}  
-
+  \item{value}{a data.frame to use as image description database}
  }
 
 \details{
@@ -81,7 +84,8 @@ is.cell.image(X)
 \seealso{EBImage}
 \examples{
 
-if(interactive()&require(EBImage,quietly=TRUE)){
+if(interactive() & require(EBImage,quietly=TRUE) & require(RcellData)){
+
   #load example dataset
   data(ACL394filtered)
   
@@ -97,8 +101,8 @@ if(interactive()&require(EBImage,quietly=TRUE)){
   ci<-get.cell.image(X,subset=pos==29,group='pos',
     channel.subset=channel=='YFP'|(t.frame==11&channel=='BF'))
   print(ci)
-}
 
+}
 }
 \keyword{manip}
 \keyword{methods}

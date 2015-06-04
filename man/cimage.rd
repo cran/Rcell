@@ -82,7 +82,9 @@ cimage(X,...)
 \seealso{EBImage,display}
 \examples{
 
-if(interactive()&require(EBImage,quietly=TRUE)){
+
+if(interactive()&require(EBImage,quietly=TRUE)&require(RcellData)){
+
 	#load example dataset
 	data(ACL394filtered)
   
@@ -90,21 +92,20 @@ if(interactive()&require(EBImage,quietly=TRUE)){
 	cimage(X,channel~t.frame,subset=pos==29&cellID==5,channel=c('BF','YFP'))
 
 	#display 7 cells (default value for N) of pos 29
-	cimage(X,...+channel~t.frame,subset=pos==29,channel=c('BF','YFP'))
+	cimage(X,cell+channel~t.frame,subset=pos==29,channel=c('BF','YFP'))
 
 	#display 3 cells from each pos in a different facet
-	cimage(X,channel~...,facets=~pos,channel=c('BF.out','YFP'),N=3,
+	cimage(X,channel~cell,facets=~pos,channel=c('BF.out','YFP'),N=3,
 		subset=t.frame==11&match(pos,c(1,8,15,22,29),nomatch=0)>0)
 
 	#select one BF and many YFP images
-	cimage(X,...~channel+t.frame,subset=pos==29,N=3,
+	cimage(X,cell~channel+t.frame,subset=pos==29,N=3,
 		channel.subset=channel=='YFP'|(channel=='BF.out'&t.frame==11))
 
 	#make a movie!		
 	cimage(X,.~cell|t.frame,subset=pos==29,channel='YFP',N=9)
 		
 }
-
 }
 \keyword{manip}
 \keyword{methods}

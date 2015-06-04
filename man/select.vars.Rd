@@ -24,22 +24,26 @@ A character vector with variable names.
 \author{ Alan Bush}
 \seealso{\code{\link{names}} }
 \examples{
-#load example dataset
-data(ACL394)
+if(require(RcellData)){
 
-#select all variables
-select.vars(X)
+  #load example dataset
+  data(ACL394)
+  
+  #select all variables
+  select.vars(X)
+  
+  #select morphological variables
+  select.vars(X,"morpho")
+  
+  #select variables of the YFP channel
+  select.vars(X,"*.y")
+  
+  #select id vars, area vars and f.tot.y
+  select.vars(X,c("id.vars","a.*","f.tot.y"))
+  
+  #select id vars, area vars and f.tot.y, exlude bg variables
+  select.vars(X,c("id.vars","a.*","f.tot.y"),exclude="*bg*")
 
-#select morphological variables
-select.vars(X,"morpho")
-
-#select variables of the YFP channel
-select.vars(X,"*.y")
-
-#select id vars, area vars and f.tot.y
-select.vars(X,c("id.vars","a.*","f.tot.y"))
-
-#select id vars, area vars and f.tot.y, exlude bg variables
-select.vars(X,c("id.vars","a.*","f.tot.y"),exclude="*bg*")
+}
 }
 \keyword{manip}

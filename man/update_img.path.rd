@@ -21,6 +21,7 @@ update_img.path(X,img.path=getwd(),subset=NULL)
 \examples{
 \dontrun{
 #load example dataset 
+library(RcellData)
 data(ACL394data)
 summary(X)
 

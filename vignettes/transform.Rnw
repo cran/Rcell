@@ -43,15 +43,16 @@ But many times we want to do some manipulation or transformations on the data be
 
 If you haven't done so, load the \textbf{Rcell} package and the example dataset with 
 
-<<echo=TRUE,eval=FALSE>>=
-library(Rcell) 
+<<eval=FALSE,echo=TRUE>>=
+library(RcellData) 
 data(ACL394filtered)
 @
 
 <<include=FALSE,echo=FALSE,eval=TRUE>>=
 library(Rcell)
+library(RcellData)
 data(ACL394data)
-X$images$path<-factor(system.file('img', package='Rcell'))
+X$images$path<-factor(system.file('img', package='RcellData'))
 @
 
 The easiest way to modify your dataset is to create new variables from existing ones. For example, its desirable to correct the fluorescence measure of a cell by the background fluorescence. To do this for the YFP channel we can use the \verb@f.bg.y@ variable, that contains the most common value (mode) for pixels not associated with any cell. If a cell has no fluorophores, we expect it to have a total fluorescence equivalent to \verb@f.bg.y@ times the number of pixels of the cell, \verb@a.tot@. So the background corrected fluorescence can be calculated as \verb@f.tot.y - f.bg.y*a.tot@. To creare a new variable called \verb@f.total.y@ with the corrected value for fluorescence we can use the \verb@transform@ funcion. As all other \textbf{Rcell} functions, the first argument is the \verb@cell.data@ object to tranform.
@@ -115,7 +116,7 @@ pos & alpha.factor \\
 \label{tab:t01}
 \end{table}
 
-You can create this table in Excel\footnote{or from R: \textbf{\texttt{mytable<-data.frame(pos=with(X,unique(pos)),alpha.factor=rep(c(1.25,2.5,5,10,20),each=3))}}} and save it as a tab delimited text file. If you name it ``mytable.txt'', then you can loaded into \textbf{R} with \verb@read.table@. The best option is to save the file in your working directory, or to change your working directory to where you saved the file (see \verb@?setwd@).   
+You can create this table in Excel\footnote{or from R: \textbf{\texttt{mytable<-data.frame(pos=with(X,unique(pos)),alpha.factor=rep(c(1.25,2.5,5,10,20),each=3))}}} and save it as a tab delimited text file. If you name it ``mytable.txt'', then you can loaded into \textbf{R} with \verb@read.table@. The best option is to save the file in your working directory, or to change your working directory to where you saved the file.   
 
 <<eval=FALSE,include=TRUE>>=
 mytable<-read.table("mytable.txt", head=TRUE)
@@ -221,14 +222,5 @@ df<-X[[pos==1,c("cellID","f.tot.y","a.tot")]]
 You can then save the data.frame to a file with \verb@write.table@, or use it in another \textbf{R} package.  
 
 \textbf{Rcell} also provides the function \verb@write.delim@, a small wraper over \verb@write.table@ that creates nice tab delimited text files. 
-For some kinds of data analysis you need your data in a different form than the one \textbf{Rcell} uses. You can use the \verb@reshape@ function to reshape your data. For instance, a common restructuring is to display time as different columns, and individual cells as different rows. You can obtain this sort of data.frames with the following command.
-
-<<include=TRUE>>=
-reshape(X, pos+cellID~variable+t.frame, select="f.tot.y", 
-           subset=pos<=2&cellID<=5&t.frame%%2==0)
-@
-
-see \verb@help(reshape.cell.data)@ for more details. 
-
 
 \end{document}

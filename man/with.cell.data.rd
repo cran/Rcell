@@ -31,13 +31,17 @@
 \author{Alan Bush}
 \seealso{ \code{\link{with}}}
 \examples{
-#load example dataset
-data(ACL394)
+if(require(RcellData)){
 
-#calculate the mean f.tot.y from pos 2
-with(X,mean(f.tot.y[pos==2]))
-
-#use base plotting
-with(X,plot(f.tot.y~f.tot.c))
+  #load example dataset
+  data(ACL394)
+  
+  #calculate the mean f.tot.y from pos 2
+  with(X,mean(f.tot.y[pos==2]))
+  
+  #use base plotting
+  with(X,plot(f.tot.y~f.tot.c))
+  
+}
 }
 \keyword{data}

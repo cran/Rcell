@@ -38,14 +38,17 @@ is.cell.data(X)
 \author{ Alan Bush }
 \seealso{ \code{\link{load.cellID.data}} }
 \examples{
-#load example dataset
-data(ACL394)
+if(require(RcellData)){
 
-#transforming dataset to list
-Xlist<-as.list(X);class(Xlist)<-"list";
-
-#re-coerce to cell.data
-Y<-as.cell.data(Xlist)
+  #load example dataset
+  data(ACL394)
+  
+  #transforming dataset to list
+  Xlist<-as.list(X);class(Xlist)<-"list";
+  
+  #re-coerce to cell.data
+  Y<-as.cell.data(Xlist)
+}
 }
 
 \keyword{manip}

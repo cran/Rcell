@@ -20,14 +20,16 @@ update_n.tot(object, QC.filter = TRUE,...)
 \author{Alan Bush}
 \seealso{ \code{\link{load.cellID.data}},\code{\link{select.cells}}}
 \examples{
-#load example dataset
-data(ACL394)
+if(require(RcellData)){
 
-#update n.tot variable
-X<-update_n.tot(X)
-
-#this command is equivalent to
-X<-transformBy(X,.(ucid), n.tot=length(t.frame))
-
+  #load example dataset
+  data(ACL394)
+  
+  #update n.tot variable
+  X<-update_n.tot(X)
+  
+  #this command is equivalent to
+  X<-transformBy(X,.(ucid), n.tot=length(t.frame))
+}
 }
 \keyword{manip}

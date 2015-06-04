@@ -57,16 +57,17 @@ The margins argument should be passed a vector of variable names, eg. c('pos','t
 \author{ Alan Bush }
 \seealso{ \code{\link{aggregate}} }
 \examples{
-#load example dataset
-data(ACL394)
-
-#rehape position 1 in pos + cellID ~ variable + t.frame for f.tot.y variable
-reshape(X,select="f.tot.y",subset=pos==1)
-
-#redefining the formula, reshape against time in minutes
-X<-transform(X,time.min=10+t.frame*15) #calculating the time of each t.frame
-reshape(X,pos+cellID~variable+time.min,select="f.tot.y",subset=pos==1&t.frame<10)
-
+if(require(RcellData)){
+  #load example dataset
+  data(ACL394)
+  
+  #rehape position 1 in pos + cellID ~ variable + t.frame for f.tot.y variable
+  reshape(X,select="f.tot.y",subset=pos==1)
+  
+  #redefining the formula, reshape against time in minutes
+  X<-transform(X,time.min=10+t.frame*15) #calculating the time of each t.frame
+  reshape(X,pos+cellID~variable+time.min,select="f.tot.y",subset=pos==1&t.frame<10)
+}
 }
 \keyword{manip}
 

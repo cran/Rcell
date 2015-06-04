@@ -53,31 +53,35 @@ Some times it is useful to create additional filters to discriminate between cel
 }
 \seealso{ \code{\link{summary.cell.data}},\code{\link{transform.cell.data}},\code{\link{load.cellID.data}} }
 \examples{
-#load example dataset
-data(ACL394filtered)
 
-#resetting all the filters
-X<-QC.reset(X)
+if(require(RcellData)){
 
-#filtering by fft.stat
-cplot(X,~fft.stat) #see what cut to use
-X<-QC.filter(X,fft.stat < 0.5) #apply the cut
+  #load example dataset
+  data(ACL394filtered)
+  
+  #resetting all the filters
+  X<-QC.reset(X)
+  
+  #filtering by fft.stat
+  cplot(X,~fft.stat) #see what cut to use
+  X<-QC.filter(X,fft.stat < 0.5) #apply the cut
+  
+  #filtering by the total number of frames in which a cell appears
+  cplot(X,cellID~t.frame,fill=f.tot.y,geom="tile",facets=~pos) 
+  X<-update_n.tot(X) #updating n.tot variable
+  cplot(X,~n.tot) #define where to apply the cut
+  X<-QC.filter(X,n.tot==14) #keep cells that appear in all t.frames
+  
+  #exclude cells by ucid (Unique Cell ID)
+  cplot(X,f.total.y~time.min,facets=~AF.nM,size=0.3,geom="jitter") 
+  #selecting cells that don't respond
+  c1=select.cells(X,f.total.y<10e4&t.frame>3,n.tot.subset=n.tot>=8)	
+  X<-QC.filter(X,!ucid \%in\% c1)
+  
+  #undoing the last filter
+  X<-QC.undo(X)
 
-#filtering by the total number of frames in which a cell appears
-cplot(X,cellID~t.frame,fill=f.tot.y,geom="tile",facets=~pos) 
-X<-update_n.tot(X) #updating n.tot variable
-cplot(X,~n.tot) #define where to apply the cut
-X<-QC.filter(X,n.tot==14) #keep cells that appear in all t.frames
-
-#exclude cells by ucid (Unique Cell ID)
-cplot(X,f.total.y~time.min,facets=~AF.nM,size=0.3,geom="jitter") 
-#selecting cells that don't respond
-c1=select.cells(X,f.total.y<10e4&t.frame>3,n.tot.subset=n.tot>=8)	
-X<-QC.filter(X,!ucid \%in\% c1)
-
-#undoing the last filter
-X<-QC.undo(X)
-
+}
 }
 \keyword{manip}
 

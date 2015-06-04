@@ -29,15 +29,19 @@
 \author{ Alan Bush }
 \seealso{\code{\link{summary}} }
 \examples{
-#load example dataset
-data(ACL394)
+if(require(RcellData)){
 
-#see the object summary
-summary(X)
+  #load example dataset
+  data(ACL394)
+  
+  #see the object summary
+  summary(X)
+  
+  #assign the object summary
+  X.sum<-summary(X)
+  names(X.sum)
 
-#assign the object summary
-X.sum<-summary(X)
-names(X.sum)
+}
 }
 \keyword{manip}
 

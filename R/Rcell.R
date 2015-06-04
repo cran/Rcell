@@ -18,7 +18,7 @@
 #loads a cellID output to a cell.data object
 #ToDo: fix bf as fluorescence option of cellID, with image.info table
 #ToDo: when bf_as_fl string BF_ appears as channel identifier
-if(getRversion() >= "2.15.1") utils::globalVariables(c("cellID","pos","flag","fluor","bright"))
+if(getRversion() >= "2.15.1") utils::globalVariables(c("cellID","pos","flag","fluor","bright","channel"))
 load.cellID.data <-
 function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
             path=getwd(),basename="out"
@@ -26,7 +26,7 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
             ,load.vars="all",split.image=FALSE) {
 	on.exit(gc())	
 
-	suppressWarnings(suppressPackageStartupMessages(is.Hmisc<-require("Hmisc",quietly=TRUE))) 
+	suppressWarnings(suppressPackageStartupMessages(is.Hmisc<-requireNamespace("Hmisc",quietly=TRUE))) 
 		
 	#Searching for folders that match pos.pattern
 	posdir=dir(pattern=pattern, path=path)
@@ -124,9 +124,9 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 
 	#selecting proper names for the channels
 	#atempting to use first letter of channel identifier
-	i=1
+	i <- 1
 	while(i<=3){
-		ch.names=substr(levels(flag.table$channel),1,i)
+		ch.names <- substr(levels(flag.table$channel),1,i)
 		#note that ch.names and levels(flag.table$channel) will have the same order
 		if (sum(is.na(pmatch(ch.names,levels(flag.table$channel))))==0){
 			i=3
@@ -155,7 +155,7 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 		warning("ch.names should have as many elements as channels in the experiment\n",
             "ch.names=",paste(ch.names),"\n channels=",paste(ch.levels),"\n",
             "ignoring argument")
-		ch.names=ch.levels  
+		ch.names <- ch.levels  
 	}
   
 	#Asserting load.vars
@@ -171,60 +171,54 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 		cat("loading variables ",toString(load.vars))    
 	}
 
-	n.data=union(union(keep.names,drop.names),load.vars)
-	old.ch.header=c()
-
-	main.header=c()
-	ch.header=list()
- 
-	for (i in 1:ch.num) ch.header[[i]]=character()
-  
+	n.data <- union(union(keep.names,drop.names),load.vars)
+	old.ch.header <- c()
+	main.header <- c()
+	ch.header <- list()
+ 	for (i in ch.levels) ch.header[[i]]=character()
 	#generating columns names vector
 	for (i in 1:length(n.data)){
 		if(!is.element(n.data[i],keep.names)){
 			if(substr(n.data[i],1,2)=="f."|length(grep("[:graph:]*nucl[:graph:]*",n.data[i]))>0){#changes the var name
-			old.ch.header=c(old.ch.header,n.data[i])
-			for (j in 1:ch.num){
-				ch.header[[j]]=c(ch.header[[j]],paste(n.data[i],".",ch.names[j],sep=""))      
-			}
+				old.ch.header <- c(old.ch.header,n.data[i])
+				for (j in 1:ch.num){
+					#ch.header[[j]] <- c(ch.header[[j]],paste(n.data[i],".",ch.names[j],sep=""))   
+					ch.header[[ch.levels[j]]] <- c(ch.header[[ch.levels[j]]],paste(n.data[i],".",ch.names[j],sep=""))   
+				}
 			} else if (!is.element(n.data[i],drop.names)){#changes and keeps the name
 				if(rename.non.f){  
-					old.ch.header=c(old.ch.header,n.data[i])
+					old.ch.header <- c(old.ch.header,n.data[i])
 					for (j in 1:ch.num)
-						ch.header[[j]]=c(ch.header[[j]],paste(n.data[i],".",ch.names[j],sep=""))      
-				
+						#ch.header[[j]] <- c(ch.header[[j]],paste(n.data[i],".",ch.names[j],sep=""))      
+						ch.header[[ch.levels[j]]] <- c(ch.header[[ch.levels[j]]],paste(n.data[i],".",ch.names[j],sep=""))      
 				}
-				main.header=c(main.header,n.data[i])  
+				main.header <- c(main.header,n.data[i])  
 			}
 		}else#keeps the var name unchange
-			main.header=c(main.header,n.data[i])  
-		
+			main.header <- c(main.header,n.data[i])  
 	}
-  
-	output.names=main.header
-  
-	for(i in 1:ch.num) output.names=c(output.names,ch.header[[i]]) 
-  
-	data=c()
-  
-	cat("restructuring positions...\n")
-	icount=0
+  	output.names <- main.header
+  	for(i in ch.levels) output.names <- c(output.names,ch.header[[i]]) 
+
+	data <- c()
+  	cat("restructuring positions...\n")
+	icount <- 0
 	for (ipos in loaded.pos){#loopingin through positions
-		posout=c() #output for this position
-		icount=icount+1
+		posout <- c() #output for this position
+		icount <- icount+1
 		cat(formatC(ipos,width=3)," ")
 		if(icount%%10==0) cat("\n")
 
 		#getting flag for each channel in this position 
-		#ch.flag=.get.flag(flag.table,ipos,ch.names,allow.na=TRUE,case.sensitive=FALSE) 
-		ch.flag=subset(flag.table,pos==ipos)$flag
-		main.flag.index=which.max(subset(flag.table,pos==ipos)$frame.n) #using the channel with more t.frames as main channel
+		ch.flag <- subset(flag.table,pos==ipos)$flag
+		main.flag.index <- which.max(subset(flag.table,pos==ipos)$frame.n) #using the channel with more t.frames as main channel
 	
-		curr.pos.data<-subset(pos.data[[ipos]],flag==ch.flag[main.flag.index],select=main.header)
-		for(ich in 1:length(ch.flag)){
-			curr.ch.pos.data<-subset(pos.data[[ipos]],flag==ch.flag[ich],select=c(.CELLID_ID_VARS,old.ch.header))
-			names(curr.ch.pos.data)<-c(.CELLID_ID_VARS,ch.header[[ich]])
-			curr.pos.data<-join(curr.pos.data,curr.ch.pos.data,by=c(.CELLID_ID_VARS))
+		curr.pos.data <- subset(pos.data[[ipos]],flag==ch.flag[main.flag.index],select=main.header)
+		#for(ich in 1:length(ch.flag)){
+		for(ich in ch.levels){
+			curr.ch.pos.data <- subset(pos.data[[ipos]],flag==with(flag.table,flag[channel==ich&pos==ipos]),select=c(.CELLID_ID_VARS,old.ch.header))
+			names(curr.ch.pos.data) <- c(.CELLID_ID_VARS,ch.header[[ich]])
+			curr.pos.data <- join(curr.pos.data,curr.ch.pos.data,by=c(.CELLID_ID_VARS))
 		}
 
 		pos.data[[ipos]]<-curr.pos.data
@@ -237,7 +231,6 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 		print(data.frame(variables=colNum.pos.data))
 		stop("Positions have different number of variables after reshaping.")
 	}
-
 	pos.data<-do.call("rbind",pos.data)
 
 	#################################################################
@@ -317,72 +310,6 @@ function(pattern="^[Pp]{1}os[:alpha:]*[:digit:]*",
 	return(cell.data)
 }
 load.cell.data<-load.cellID.data
-
-#*************************************************************************#
-#public
-#loads a cellX output to a cell.data object
-load.cellX.data <- function(pattern=glob2rx("Position*.txt"),path=getwd()){
-
-	#identifying files to load based on patter and path
-	file.names<-dir(pattern=pattern, path=path)	
-	if(length(file.names)==0) stop("no file with the specified pattern in ", path)
-	pos.db<-data.frame(fname=file.names,path=path)
-	
-	#using numeric part of filename as pos
-	pos.db<-transform(pos.db,pos=gsub("[[:punct:]]","",gsub("[[:alpha:]]","",fname)))
-	pos.db$pos<-as.numeric(pos.db$pos)
-
-	#reading tables
-	pos.data<-dlply(pos.db,.(pos),function(df) read.delim(paste(df$path,df$fname,sep="/")))
-
-	#checking that all tables have the same variables 
-	all.vars<-unique(do.call(c,lapply(pos.data,names)))
-	missing.vars<-lapply(lapply(pos.data,names),function(x)setdiff(x,all.vars))
-	if(any(sapply(missing.vars,length)>0)) stop("tables with different vars")
-
-	#merging tables and creating "pos" variable
-	data<-ldply(pos.data)
-
-	#renaming "id" variables to Rcell standard
-	data<-rename(data,c("track.index"="cellID","cell.frame"="t.frame"))
-
-	#creating Unique Cell ID var 
-	data<-transform(data,ucid=1e6*pos+cellID)
-
-	#defining variable for Quality Control filtering
-	data$QC<-TRUE	
-
-	#defining variable groups to use as "keywords"
-	variables<-list(id.vars=c("pos","t.frame","cellID","ucid")
-				   ,QC="QC"
-				   ,as.factor=c("pos","cellID","ucid")
-				   ,all=names(data))	
-	variables$track<-grep(glob2rx("track*"),variables$all,value=TRUE)
-	variables$morpho<-grep(glob2rx("cell*"),variables$all,value=TRUE)
-	variables$fluor<-setdiff(variables$all,c(variables$morpho,variables$track,variables$id.vars,variables$QC))
-	
-	#identifyingchannel names from variable names
-	channels<-unique(ldply(variables$fluor,function(x)strsplit(x,split=".",fixed = TRUE)[[1]][[1]])[[1]])
-	channels=data.frame(prefix=channels,name=channels,stringsAsFactors=FALSE)
-
-	#creating cell.data object to return
-	cell.data<-
-		list(data=data
-			,QC.history=list()
-			,subset.history=list()
-			,transform=list()
-			,channels=channels
-			,variables=variables
-			,images=NULL
-			,software="CellX"
-			,load.date=date()
-			,load.sessionInfo=sessionInfo()
-        )
-	class(cell.data)<-c("cell.data","list")
-
-	print(summary(cell.data))
-	return(cell.data)
-}
 
 #*************************************************************************#
 #generic
@@ -604,7 +531,7 @@ load.pdata<-function(X,pdata="pdata.txt",by=NULL,path=getwd()){
 	if(class(pdata)=="character"){
 		if(!file.exists(paste(path,"/",pdata,sep=""))) 
 			stop("File ",pdata," not found at \n",path,"\n")
-		pdata=read.table(file=paste(path,"/",pdata,sep=""),header=TRUE)	
+		pdata<-read.delim(file=paste(path,"/",pdata,sep=""))	
 	} else if (class(pdata)!="data.frame") 
 		stop("pdata should be of class data.frame or character (the filename of the pdata table)\n")
 		
@@ -626,7 +553,7 @@ transform.cell.data <- function(`_data`,...,QC.filter=TRUE){
 	dots<-as.list(match.call(expand.dots=FALSE)$...) 
 	if("subset" %in% names(dots)) stop("subset argument not available for transform.cell.data")
 	vars<-.get_var_names(dots,names(`_data`$data)) #retrieving names of required variables for calculation
-	new.data<-summarise(subset(`_data`$data,select=vars),...)
+	new.data<-plyr::summarise(subset(`_data`$data,select=vars),...)
 	for(i in names(new.data))
 		`_data`$data[[i]]<-new.data[[i]]
 	
@@ -713,7 +640,7 @@ transformBy <- function(`_data`,.by,...) UseMethod("transformBy")
 aggregate.cell.data <- function(x, form.by, ..., FUN=mean
 								,subset=TRUE, select=NULL, exclude=NULL, QC.filter=TRUE){
 	args=as.list(match.call(expand.dots=FALSE))
-	if(isTRUE(try(is.formula(form.by),silent=TRUE))){ #formula
+	if(isTRUE(try(plyr::is.formula(form.by),silent=TRUE))){ #formula
 		.data=do.call(as.data.frame
 			,args[intersect(c("x","subset","QC.filter"),names(args))])
 		aggr.args<-list(form.by)
@@ -723,7 +650,7 @@ aggregate.cell.data <- function(x, form.by, ..., FUN=mean
 		aggr=do.call("aggregate",aggr.args)
 	} else { #by argument
 		select.vars=.select(x$variables,select,exclude)
-		by.vars=names(as.quoted(form.by))
+		by.vars=names(plyr::as.quoted(form.by))
 		args$select<-unique(c(select.vars,by.vars))
 		.data=do.call(as.data.frame.cell.data,args[intersect(c("x","subset","select","QC.filter"),names(args))])
 		aggr=aggregate.data.frame(.data[select.vars]
@@ -751,7 +678,7 @@ aggregateBy.data.frame <- function(x,.by,select="all",...,FUN=mean,subset=NULL,e
 
 	#doing the aggregation	
 	select.vars<- .select(list(all=names(x)),select,exclude)
-	by.vars<-names(as.quoted(.by))
+	by.vars<-names(plyr::as.quoted(.by))
 	aggr<-aggregate.data.frame(x[setdiff(select.vars,by.vars)],by=x[by.vars],FUN=FUN,...)
 
 	return(flatten.data.frame(aggr))
@@ -765,7 +692,7 @@ aggregateBy.cell.data <- function(x, .by, select, ..., FUN=mean
 								,subset=TRUE, exclude=NULL, QC.filter=TRUE){
 	args<-as.list(match.call(expand.dots=FALSE))
 	select.vars<-.select(x$variables,select,exclude)
-	by.vars<-names(as.quoted(.by))
+	by.vars<-names(plyr::as.quoted(.by))
 	args$select<-unique(c(select.vars,by.vars))
 	.data<-do.call(as.data.frame.cell.data,args[intersect(c("x","subset","select","QC.filter"),names(args))])
 	aggr<-aggregate.data.frame(.data[select.vars]
@@ -813,7 +740,7 @@ select.cells <- function(X, subset = TRUE, n.tot.subset=NULL ,QC.filter=TRUE){
 		X$data<-X$data[eval(n.tot.subset,X$data),]
 	}
 	
-	return(unique(X$data$ucid))
+	return(na.omit(unique(X$data$ucid)))
 }
 
 #*************************************************************************#
@@ -1097,7 +1024,7 @@ print.cell.data<-function(x,...){
 #public
 #prints a summary.cell.data object
 #ToDo: xpos.nucl.y ypos.nucl.y, etc
-if(getRversion() >= "2.15.1") utils::globalVariables(c("undo","type","cer","can.undo","exclude.vars"))
+if(getRversion() >= "2.15.1") utils::globalVariables(c("undo","type","cer","can.undo","exclude.vars","desc"))
 print.summary.cell.data<-function(x,...){
 	cat("\n",x$software,"data object summary")
 	cat("\n")
@@ -1189,15 +1116,15 @@ summary.cell.data <-function(object,...){
 		summary$morpho.vars=object$variables$morpho
 	}
 
-	mcv=.select(object$variables,select="morpho",exclude=summary$morpho.vars)
-	fcv=.select(object$variables,select="fluor")
+	mcv <- .select(object$variables,select="morpho",exclude=summary$morpho.vars)
+	fcv <- .select(object$variables,select="fluor")
 	
 	if(object$software=="Cell-ID"){
-		summary$morpho.ch.vars=unique(substr(mcv,1,nchar(mcv)-2))
-		summary$fluor.ch.vars=unique(substr(fcv,1,nchar(fcv)-2))
+		summary$morpho.ch.vars=unique(substr(mcv,1,.nchar(mcv)-2))
+		summary$fluor.ch.vars=unique(substr(fcv,1,.nchar(fcv)-2))
 	} else if (object$software=="CellX"){
-		summary$morpho.ch.vars=unique(substr(mcv,5,nchar(mcv)))
-		summary$fluor.ch.vars=unique(substr(fcv,5,nchar(fcv)))
+		summary$morpho.ch.vars=unique(substr(mcv,5,.nchar(mcv)))
+		summary$fluor.ch.vars=unique(substr(fcv,5,.nchar(fcv)))
 	} else {
 		summary$morpho.ch.vars=unique(mcv)
 		summary$fluor.ch.vars=unique(fcv)
@@ -1261,25 +1188,29 @@ reshape <- function(data,...) UseMethod("reshape")
 reshape.cell.data<-function(data,formula = pos + cellID ~ variable + t.frame, fun.aggregate=NULL, ..., margins=FALSE, fill=NULL
 							,id.vars=NULL, measure.vars=NULL, variable_name = "variable", na.rm = FALSE
 							,subset=TRUE ,select=NULL ,exclude=NULL ,QC.filter=TRUE){
-	subset=substitute(subset)
+	subset <- substitute(subset)
 	if(isTRUE(QC.filter) && class(data$data$QC)=="logical")
-		data$data=subset(data$data,QC)
+		data$data <- subset(data$data,QC)
 	
-	select.vars=.select(data$variables,select,exclude)
-	if(isTRUE(select.vars)) select.vars=data$variables$all
-	if(is.null(id.vars)){ id.vars=intersect(all.vars(formula),data$variables$all) 
-	} else { id.vars=.select(data$variables,id.vars) }
+	select.vars <- .select(data$variables,select,exclude)
+	if(isTRUE(select.vars)) 
+		select.vars <- data$variables$all
+	if(is.null(id.vars)){
+		id.vars <- intersect(all.vars(formula),data$variables$all) 
+	}else{ 
+		id.vars <- .select(data$variables,id.vars) 
+	}
 	
-	measure.vars=.select(data$variables,measure.vars)
+	measure.vars <- .select(data$variables,measure.vars)
 	if(isTRUE(id.vars)&&isTRUE(measure.vars)) stop("either id.vars or measure.vars should be specifyied")	
-	if(isTRUE(id.vars)) id.vars=setdiff(select.vars,measure.vars)
-	if(isTRUE(measure.vars)) measure.vars=setdiff(select.vars,id.vars)
-	select.vars=union(id.vars,measure.vars)	
+	if(isTRUE(id.vars)) id.vars <- setdiff(select.vars,measure.vars)
+	if(isTRUE(measure.vars)) measure.vars <- setdiff(select.vars,id.vars)
+	select.vars <- union(id.vars,measure.vars)	
 
-	data$data<-data$data[eval(subset,data$data),select.vars]
+	data$data <- data$data[eval(subset,data$data),select.vars]
 
-	mdata=melt.data.frame(data$data, id.vars, measure.vars, variable_name = variable_name, na.rm = na.rm)
-	return(cast(mdata, formula = formula, fun.aggregate = fun.aggregate, ..., margins=margins, fill=fill))	
+	mdata <- reshape::melt.data.frame(data$data, id.vars, measure.vars, variable_name = variable_name, na.rm = na.rm)
+	return(reshape::cast(mdata, formula = formula, fun.aggregate = fun.aggregate, ..., margins=margins, fill=fill))	
 }
 creshape<-reshape.cell.data
 
@@ -1300,6 +1231,55 @@ with.cell.data <- function(data,expr,subset=TRUE,select=NULL,exclude=NULL,QC.fil
 	return(eval(expr,data$data))
 }
 
+
+#*************************************************************************#
+#publc
+#conform a data.frame to the structure of an other one
+conform<-function(df,to){
+	tmp<-list()
+	for(i in names(to)) 
+		if(i %in% names(df)){
+			tmp[[i]]<-df[[i]]
+		}else {
+			tmp[[i]]<-NA
+		}
+	return(as.data.frame(tmp))
+}
+
+
+#*************************************************************************#
+#public
+#Creates the generic function flatten
+flatten <- function(df,...) UseMethod("flatten")
+
+flatten.data.frame <- function(df,...){
+
+	dfList<-as.list(df)
+	dfNames<-names(df)
+	dfOut<-list()	
+
+	for(i in seq_len(length(dfList))){
+		o<-as.data.frame(dfList[[i]])
+		if(is.matrix(dfList[[i]])){
+			names(o)<-paste(colnames(dfList[[i]]),dfNames[i],sep=".")
+		} else {
+			names(o)<-dfNames[i]
+		}
+		dfOut[[i]]<-o
+	}
+
+	return(do.call(cbind,dfOut))
+}
+flatten.default<-flatten.data.frame
+
+#*************************************************************************#
+#public
+#Writes a tab delimited file. Wrapper to write.table
+write.delim<-function(x, file = "", quote = FALSE, sep = "\t", row.names = FALSE,...){
+	write.table(x,file=file,quote=quote,sep=sep,row.names=row.names,...)
+}
+
+
 #ToDo: function within.cell.data
 #*************************************************************************#
 #public
@@ -1307,6 +1287,17 @@ with.cell.data <- function(data,expr,subset=TRUE,select=NULL,exclude=NULL,QC.fil
 #within.cell.data
 
 #####################Private Functions#####################################
+
+#*************************************************************************#
+#private
+#workaround to the change in nchar behavior introduced in R 3.3.0
+.nchar<-function(x, type = "chars", allowNA = FALSE){
+	if(getRversion() <= "3.2.0"){
+		return(nchar(x,type,allowNA))
+	} else {
+		return(nchar(x,type,allowNA,keepNA=FALSE))
+	}
+}
 
 #*************************************************************************#
 #private
@@ -1348,8 +1339,8 @@ if(getRversion() >= "2.15.1") utils::globalVariables(c("cellID","posfix","name")
 #private
 #append identifiers to variables names
 .append.identifier<-function(var.names,identifier,common.vars=c("QC",.CELLID_ID_VARS_DERIV)){
-	h=var.names
-	nh<-nchar(h)
+	h <- var.names
+	nh <- .nchar(h)
 	return(
 		paste(h
 			,ifelse(substr(h,nh-1,nh-1)=="."|h%in%common.vars,"",".")
@@ -1364,35 +1355,41 @@ if(getRversion() >= "2.15.1") utils::globalVariables(c("cellID","posfix","name")
 	exp.select=c()
 	for(i in select){
 		if(substr(i,1,1)=="-")
-			exclude=c(exclude,substr(i,2,nchar(i)))
+			exclude <- c(exclude,substr(i,2,.nchar(i)))
 		else{
-			ms=intersect(i,names(variables))
-			if(length(ms)==1) exp.select=c(exp.select,variables[[ms]])
+			ms <- intersect(i,names(variables))
+			if(length(ms)==1) exp.select <- c(exp.select,variables[[ms]])
 			else {
-				ms=grep(glob2rx(i),variables$all,value=TRUE)
+				ms <- grep(glob2rx(i),variables$all,value=TRUE)
 				if(length(ms)==0&&!(select%in%c("","none"))&&warn) warning("unknown selected variable ",i)
-				exp.select=c(exp.select,ms)
+				exp.select <- c(exp.select,ms)
 			}
 		}
 	}
-	exp.select=unique(exp.select)
+	exp.select <- na.omit(unique(exp.select))
 	
 	#expanding exclude
-	exp.exclude=c()
+	exp.exclude <- c()
 	for(i in exclude){
-		me=intersect(i,names(variables))
-		if(length(me)==1) exp.exclude=c(exp.exclude,variables[[me]])
+		me <- intersect(i,names(variables))
+		if(length(me)==1) exp.exclude <- c(exp.exclude,variables[[me]])
 		else {
 			me=grep(glob2rx(i),variables$all,value=TRUE)
 			if(length(me)==0&&warn) warning("unknown excluded variable ",i)
 			exp.exclude=c(exp.exclude,me)
 		}
 	}
-	exp.exclude=unique(exp.exclude)
+	exp.exclude <- na.omit(unique(exp.exclude))
 	
-	if		(length(select)==0 & length(exp.exclude)==0) return(TRUE)
-	else if (length(select)==0 & length(exp.exclude)>0)  return(setdiff(variables$all,exp.exclude))
-	else return(setdiff(exp.select,exp.exclude))
+	if (length(select)==0 & length(exp.exclude)==0){
+		return(TRUE)
+	} else if (length(select)==0 & length(exp.exclude)>0) { 
+		output <- setdiff(variables$all,exp.exclude)
+		return(output[!is.na(output)])
+	} else {
+		output <- setdiff(exp.select,exp.exclude)
+		return(output[!is.na(output)])
+	}
 }
 
 #*************************************************************************#
@@ -1475,16 +1472,16 @@ if(getRversion() >= "2.15.1") utils::globalVariables(c("cellID","posfix","name")
 #private
 #prints variable names to the console in a nice format
 .print.var.names<-function(var.names,description="variable names",width=70){
-	output=paste(description,": ",sep="")
-	line.nchar=nchar(output)
+	output <- paste0(description,": ")
+	line.nchar <- .nchar(output)
 	for(i in 1:length(var.names)){
-		if(line.nchar>width){
-			output=paste(output,"\n  ",sep="")
-			line.nchar=2 #nchar("\t")	
+		if(line.nchar > width){
+			output <- paste0(output,"\n  ")
+			line.nchar <- 2 #nchar("\t")	
 		}
-		output=paste(output,var.names[i],sep="")
-		line.nchar=line.nchar+nchar(var.names[i])+2
-		if(i!=length(var.names)) output=paste(output,", ",sep="")
+		output <- paste0(output,var.names[i])
+		line.nchar <- line.nchar + .nchar(var.names[i]) + 2
+		if(i != length(var.names)) output<-paste0(output,", ")
 	}
 	cat(output)
 }
@@ -1494,11 +1491,13 @@ if(getRversion() >= "2.15.1") utils::globalVariables(c("cellID","posfix","name")
 #formats paths in a short but informative manner
 #ToDo: use normalizePath to print a user friendly path
 .format.path<-function(path,max.nchar=60){
-	fp=c()
+	fp <- c()
 	for(i in path)
-		if(nchar(i)>max.nchar) 
-			fp=c(fp,paste(substr(i,1,4),"...",substr(i,nchar(i)-max.nchar+7,nchar(i)),sep=""))
-		else fp=c(fp,i)	
+		if(.nchar(i)>max.nchar){ 
+			fp <- c(fp,paste(substr(i,1,4),"...",substr(i,.nchar(i)-max.nchar+7,.nchar(i)),sep=""))
+		}else{
+			fp <- c(fp,i)	
+		}
 	return(fp)
 }
 
@@ -1666,6 +1665,11 @@ return(output)
   }
   return(output)
 }
+
+
+
+
+
 
 ##################### ToDo Functions ##############################################################
 

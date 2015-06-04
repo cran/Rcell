@@ -46,7 +46,8 @@ show.image(X,pos,t.frame=0,channel="BF.out",image.title=""
 \seealso{EBImage}
 \examples{
 
-if(interactive()&require(EBImage,quietly=TRUE)){
+if(interactive()&require(EBImage,quietly=TRUE)&require(RcellData)){
+
   #load example dataset
   data(ACL394filtered)
   
@@ -56,7 +57,6 @@ if(interactive()&require(EBImage,quietly=TRUE)){
   #display a stack of the YFP images of position 29
   show.img(X,pos=29,t.frame=7:11,channel="YFP")
 }
-
 }
 \keyword{manip}
 \keyword{methods}

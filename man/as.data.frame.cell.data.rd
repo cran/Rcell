@@ -52,23 +52,25 @@ and keywords (e.g. 'all', 'id.vars', 'YFP', etc.) can be used as components of t
 
 \seealso{ \code{\link{as.data.frame}} }
 \examples{
-#load example dataset
-data(ACL394)
+if(require(RcellData)){
 
-#extract the dataset to a data.frame
-df<-as.data.frame(X)
-df<-X[[]]
-
-#extract a subset of the data.frame
-df<-X[[t.frame==13,]]
-
-#extract a selected group of variables
-df<-X[[,c("id.vars","f.tot.?","a.tot")]]
-#note the use of keywords, patterns and variable names
-
-#extract the dataset without applying the QC filter
-df<-cdata(X,QC.filter=FALSE)
-
+  #load example dataset
+  data(ACL394)
+  
+  #extract the dataset to a data.frame
+  df<-as.data.frame(X)
+  df<-X[[]]
+  
+  #extract a subset of the data.frame
+  df<-X[[t.frame==13,]]
+  
+  #extract a selected group of variables
+  df<-X[[,c("id.vars","f.tot.?","a.tot")]]
+  #note the use of keywords, patterns and variable names
+  
+  #extract the dataset without applying the QC filter
+  df<-cdata(X,QC.filter=FALSE)
+}
 }
 \keyword{manip}
 

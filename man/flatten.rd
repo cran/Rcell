@@ -28,10 +28,10 @@
 \author{Alan Bush}
 \seealso{ \code{\link{with}}}
 \examples{
-#load example dataset
-data(ACL394)
-if(require(Hmisc)){
-	agg<-aggregate(X,f.tot.y~pos,subset=t.frame==0,FUN=smean.cl.normal) 
+if(require(Hmisc)&require(RcellData)){
+  #load example dataset
+  data(ACL394)
+  agg<-aggregate(X,f.tot.y~pos,subset=t.frame==0,FUN=smean.cl.normal) 
 	str(agg)
 	agg<-flatten(agg)
 	str(agg)

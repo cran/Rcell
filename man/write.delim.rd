@@ -25,8 +25,10 @@
 \author{Alan Bush}
 \seealso{ \code{\link{write.table}}}
 \examples{
-data(ACL394)
-agg<-aggregateBy(X,.(pos),select="f.tot.y",subset=t.frame==0,FUN=mean)
-if(interactive()) write.delim(agg,"myTable.txt")
+if(require(RcellData)){
+  data(ACL394)
+  agg<-aggregateBy(X,.(pos),select="f.tot.y",subset=t.frame==0,FUN=mean)
+  if(interactive()) write.delim(agg,"myTable.txt")
+}
 }
 \keyword{data}

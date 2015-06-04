@@ -59,14 +59,15 @@ In the following sections I will try to make this clear by a series of explained
 If you haven't done so, load the \textbf{Rcell} package and the example dataset with 
 
 <<eval=FALSE,echo=TRUE>>=
-library(Rcell) 
+library(RcellData) 
 data(ACL394filtered)
 @
 
 <<include=FALSE,echo=FALSE,eval=TRUE>>=
 library(Rcell)
+library(RcellData)
 data(ACL394data)
-X$images$path<-factor(system.file('img', package='Rcell'))
+X$images$path<-factor(system.file('img', package='RcellData'))
 @
 
 You can create a scatter plot of YFP vs CFP total fluorescence (Figure~\ref{fig:f01} left) by typing

@@ -23,16 +23,17 @@ foo <- packageDescription("Rcell")
 ###################################################
 ### code chunk number 4: cplot.Rnw:61-63 (eval = FALSE)
 ###################################################
-## library(Rcell) 
+## library(RcellData) 
 ## data(ACL394filtered)
 
 
 ###################################################
-### code chunk number 5: cplot.Rnw:66-69
+### code chunk number 5: cplot.Rnw:66-70
 ###################################################
 library(Rcell)
+library(RcellData)
 data(ACL394data)
-X$images$path<-factor(system.file('img', package='Rcell'))
+X$images$path<-factor(system.file('img', package='RcellData'))
 
 
 ###################################################
@@ -49,7 +50,7 @@ cplot(X, x=f.tot.y, y=f.tot.c, size=a.tot, color=factor(AF.nM),
 
 
 ###################################################
-### code chunk number 8: cplot.Rnw:90-98
+### code chunk number 8: cplot.Rnw:91-99
 ###################################################
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(1, 20)))
@@ -69,7 +70,7 @@ cplot(X, x=t.frame, y=f.tot.y, subset=AF.nM==20)
 
 
 ###################################################
-### code chunk number 10: cplot.Rnw:116-118 (eval = FALSE)
+### code chunk number 10: cplot.Rnw:117-119 (eval = FALSE)
 ###################################################
 ## cplot(X, f.tot.y~t.frame, subset= AF.nM==20)
 ## plot(X, f.tot.y~t.frame, subset= AF.nM==20)
@@ -82,7 +83,7 @@ cplot(X, f.tot.y~t.frame, size=1, alpha=0.3, position="jitter", subset=AF.nM==20
 
 
 ###################################################
-### code chunk number 12: cplot.Rnw:130-138
+### code chunk number 12: cplot.Rnw:131-139
 ###################################################
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(1, 20)))
@@ -101,7 +102,7 @@ cplot(X, f.tot.y~t.frame, group=t.frame, geom="boxplot", subset=AF.nM==20)
 
 
 ###################################################
-### code chunk number 14: cplot.Rnw:157-159 (eval = FALSE)
+### code chunk number 14: cplot.Rnw:158-160 (eval = FALSE)
 ###################################################
 ## cplot(X, f.tot.y~t.frame, subset= AF.nM == 20, stat="summary", fun.data="mean_cl_normal",
 ##          geom=c("point","errorbar","line"))
@@ -114,7 +115,7 @@ cplotmean(X, f.tot.y~t.frame, subset=AF.nM==20)
 
 
 ###################################################
-### code chunk number 16: cplot.Rnw:173-181
+### code chunk number 16: cplot.Rnw:174-182
 ###################################################
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(1, 20)))
@@ -127,7 +128,7 @@ cplotmean(X, f.tot.y~t.frame, subset=AF.nM==20)
 
 
 ###################################################
-### code chunk number 17: cplot.Rnw:192-193
+### code chunk number 17: cplot.Rnw:193-194
 ###################################################
 p <- cplot(X, f.tot.y~t.frame, size=1, alpha=0.3, position="jitter", subset=AF.nM==20)
 
@@ -145,7 +146,7 @@ p + clayermean(geom="smooth")
 
 
 ###################################################
-### code chunk number 20: cplot.Rnw:211-219
+### code chunk number 20: cplot.Rnw:212-220
 ###################################################
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(1, 20)))
@@ -165,7 +166,7 @@ cplot(X, f.tot.y~t.frame, facets=~pos, geom="smooth", method="loess",
 
 
 ###################################################
-### code chunk number 22: cplot.Rnw:241-244
+### code chunk number 22: cplot.Rnw:242-245
 ###################################################
 print(
 cplot(X, f.tot.y~t.frame, facets=~pos, geom="smooth", method="loess",
@@ -186,7 +187,7 @@ cplot(X, ~f.tot.y, subset=t.frame==13, fill=factor(AF.nM), binwidth=4e5)
 
 
 ###################################################
-### code chunk number 25: cplot.Rnw:268-276
+### code chunk number 25: cplot.Rnw:269-277
 ###################################################
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(1, 20)))
@@ -199,7 +200,7 @@ cplot(X, ~f.tot.y, subset=t.frame==13, fill=factor(AF.nM), binwidth=4e5)
 
 
 ###################################################
-### code chunk number 26: cplot.Rnw:290-298
+### code chunk number 26: cplot.Rnw:291-299
 ###################################################
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(1, 20)))
@@ -226,7 +227,7 @@ cplot(X, x=f.tot.y, subset=t.frame==7, geom="density", color=factor(AF.nM),
 
 
 ###################################################
-### code chunk number 29: cplot.Rnw:322-330
+### code chunk number 29: cplot.Rnw:323-331
 ###################################################
 grid.newpage()
 pushViewport(viewport(layout = grid.layout(1, 20)))

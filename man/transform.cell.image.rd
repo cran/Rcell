@@ -57,7 +57,9 @@ add.maj.min.axis(X=NULL,col=0.75,angle.var=NA,...)
 \seealso{\code{\link{cimage}}}
 \examples{
 
-if(require(EBImage,quietly=TRUE)){ #suggested package EBImage required for these functions
+#suggested package EBImage required for these functions
+if(require(EBImage,quietly=TRUE)&require(RcellData)){ 
+
   #load example dataset
   data(ACL394)
 
